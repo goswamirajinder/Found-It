@@ -1,0 +1,27 @@
+{
+  "name": "Found It",
+  "short_name": "Found It",
+  "description": "Remember where you put things, and anything else worth remembering.",
+  "id": "./",
+  "start_url": "./?source=app",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ECEFEA",
+  "theme_color": "#ECEFEA",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Speak", "short_name": "Speak", "description": "Say what you put where, or ask where something is", "url": "./?action=voice", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Note anything", "short_name": "Note", "url": "./?action=note", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Put something away", "short_name": "Put away", "url": "./?action=keep", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]}
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {"title": "share_title", "text": "share_text", "url": "share_url"}
+  }
+}

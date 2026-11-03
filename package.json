@@ -1,0 +1,12 @@
+{
+  "name": "found-it",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Remember where you put things, and anything else worth remembering. An installable phone app (PWA) with no build step.",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node tests/run.mjs",
+    "icons": "node tools/make-icons.mjs"
+  }
+}

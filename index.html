@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Found It</title>
+<meta name="description" content="Remember where you put things, and anything else worth remembering.">
+<meta name="theme-color" content="#ECEFEA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101512" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Found It">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>Found<span>It</span></h1>
+      <p id="count">Where did I keep it?</p>
+      <button class="iconbtn" id="settings-btn" type="button" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></button>
+    </div>
+    <form class="search" id="search-form" role="search">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <label class="sr" for="q">Search everything you saved</label>
+      <input id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="What are you looking for?">
+      <button type="button" class="clear" id="q-clear" aria-label="Clear search" hidden>&times;</button>
+    </form>
+  </div>
+</header>
+
+<main class="wrap" id="main"><p class="empty-note">Opening…</p></main>
+
+<nav class="dock" aria-label="Add something">
+  <div class="dock-in">
+    <button class="dock-btn" id="note-btn" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8.5 12h7M8.5 16h5"/></svg><span>Note anything</span></button>
+    <button class="mic" id="mic-btn" type="button" aria-label="Speak"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button>
+    <button class="dock-btn" id="keep-btn" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Put away</span></button>
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog class="sheet" id="cap-dlg" aria-labelledby="cap-title">
+  <form id="cap-form" novalidate style="display:contents">
+    <div class="sh-head"><h2 id="cap-title">Save something</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <div class="sh-body">
+      <div class="seg" role="tablist" id="cap-mode" aria-label="What are you saving?">
+        <button type="button" role="tab" id="mode-item" data-mode="item" aria-selected="true">Where I put something</button>
+        <button type="button" role="tab" id="mode-note" data-mode="note" aria-selected="false">Anything else</button>
+      </div>
+
+      <div class="quick" data-for="item">
+        <label class="lbl" for="f-quick">Say it in one line</label>
+        <input class="input" id="f-quick" autocomplete="off" enterkeyhint="next" placeholder="Diwali lights in the blue trunk on the bedroom loft">
+        <p class="hint">Tap the mic on your keyboard and just say it. The boxes below fill themselves.</p>
+        <p class="got" id="quick-got" aria-live="polite"></p>
+      </div>
+      <div class="field" data-for="note">
+        <label for="f-text">What do you want to remember?</label>
+        <textarea class="input big" id="f-text" maxlength="1000" placeholder="Car is on B2 near pillar 14. Saw a brass lamp I liked at Dilli Haat. Plumber's number is on the fridge."></textarea>
+        <p class="hint">A thought, something you saw, a number, an idea. Search finds it later.</p>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="photo-lbl">Photo</span>
+        <div class="photo" id="photo-box">
+          <label for="f-photo" id="photo-pick"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><b>Add a photo</b><span class="hint" id="photo-hint">A picture of the shelf or box beats any description.</span></label>
+          <img id="photo-prev" alt="Photo you added" hidden>
+        </div>
+        <input type="file" id="f-photo" accept="image/*" class="sr" tabindex="-1">
+        <div class="row" id="photo-actions" hidden>
+          <label class="btn small" for="f-photo">Change photo</label>
+          <button type="button" class="btn small ghost" id="photo-remove">Remove</button>
+        </div>
+      </div>
+
+      <div class="field" data-for="item">
+        <label for="f-name">What is it?</label>
+        <input class="input" id="f-name" maxlength="120" autocomplete="off" placeholder="Diwali lights (2 sets)">
+      </div>
+      <div class="field" data-for="item">
+        <span class="lbl">Where?</span>
+        <div class="chips" id="room-chips"></div>
+        <div class="two">
+          <div class="field"><label for="f-room" class="hint">Room</label><input class="input" id="f-room" list="dl-rooms" maxlength="60" autocomplete="off" placeholder="Bedroom"></div>
+          <div class="field"><label for="f-spot" class="hint">Exact spot</label><input class="input" id="f-spot" list="dl-spots" maxlength="140" autocomplete="off" placeholder="Steel almirah, top shelf"></div>
+        </div>
+        <datalist id="dl-rooms"></datalist><datalist id="dl-spots"></datalist>
+      </div>
+      <div class="field" data-for="item">
+        <span class="lbl">When will you need it next?</span>
+        <div class="chips" id="occ-chips"></div>
+        <p class="hint" id="occ-note"></p>
+      </div>
+      <div class="field" id="remind-field">
+        <label for="f-remind">Remind me on</label>
+        <input class="input" type="date" id="f-remind">
+      </div>
+      <div class="field" data-for="item">
+        <span class="lbl">Kind of thing</span>
+        <div class="chips" id="cat-chips"></div>
+      </div>
+      <details class="more" id="more" data-for="item">
+        <summary>Expiry date and notes</summary>
+        <div class="more-body">
+          <div class="field"><label for="f-expiry">Expires on</label><input class="input" type="date" id="f-expiry"><p class="hint">For medicines, passports, insurance and warranties.</p></div>
+          <div class="field"><label for="f-notes">Notes</label><textarea class="input" id="f-notes" maxlength="500" placeholder="Wrapped in a red cloth, behind the winter quilts"></textarea></div>
+        </div>
+      </details>
+
+      <div class="stamp">
+        <p class="stamp-time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span id="stamp-time">Saved with today's date and time</span></p>
+        <label class="toggle"><input type="checkbox" id="f-loc"><span>Add where I am right now</span></label>
+        <p class="hint" id="loc-status" aria-live="polite"></p>
+      </div>
+      <p class="err" id="cap-err" role="alert" hidden></p>
+    </div>
+    <div class="sh-foot"><button class="btn primary" id="cap-save" type="submit">Save</button></div>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="item-dlg" aria-labelledby="item-title">
+  <div class="sh-head"><h2 id="item-title"></h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+  <div class="sh-body" id="item-body"></div>
+</dialog>
+
+<dialog class="sheet" id="move-dlg" aria-labelledby="move-title">
+  <form id="move-form" novalidate style="display:contents">
+    <div class="sh-head"><h2 id="move-title">Where is it now?</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <div class="sh-body">
+      <div id="move-same"></div>
+      <div class="field">
+        <span class="lbl" id="move-lbl">New place</span>
+        <div class="chips" id="move-room-chips"></div>
+        <div class="two">
+          <div class="field"><label class="hint" for="m-room">Room</label><input class="input" id="m-room" list="dl-rooms" maxlength="60" autocomplete="off"></div>
+          <div class="field"><label class="hint" for="m-spot">Exact spot</label><input class="input" id="m-spot" list="dl-spots-m" maxlength="140" autocomplete="off"></div>
+        </div>
+        <datalist id="dl-spots-m"></datalist>
+      </div>
+      <p class="err" id="move-err" role="alert" hidden></p>
+    </div>
+    <div class="sh-foot"><button class="btn primary" type="submit" id="move-save">Save new place</button></div>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="voice-dlg" aria-labelledby="voice-title">
+  <div class="sh-head"><h2 id="voice-title">Say it</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+  <div class="sh-body">
+    <div class="listen" id="listen">
+      <button class="mic big" id="voice-mic" type="button" aria-label="Start listening"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button>
+      <p id="voice-state">Tap the mic and speak.</p>
+    </div>
+    <p class="heard" id="heard" aria-live="polite"></p>
+    <div id="voice-result" aria-live="polite"></div>
+    <form id="voice-form" class="vtype" novalidate>
+      <label class="sr" for="v-text">Or type it</label>
+      <input class="input" id="v-text" autocomplete="off" enterkeyhint="go" placeholder="Or type: where is my passport?">
+      <button class="btn dark" type="submit">Go</button>
+    </form>
+    <details class="examples">
+      <summary>Things you can say</summary>
+      <ul>
+        <li>“I kept the passport in the steel almirah in the bedroom”</li>
+        <li>“Where are the Diwali lights?” or “Passport kahan hai?”</li>
+        <li>“Note: the plumber's number is on the fridge”</li>
+        <li>“Car parked on B2 near pillar 14”</li>
+        <li>“I took out the extension board” / “I put the extension board back”</li>
+        <li>“Remind me to renew the car insurance”</li>
+      </ul>
+    </details>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="set-dlg" aria-labelledby="set-title">
+  <div class="sh-head"><h2 id="set-title">Settings</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+  <div class="sh-body" id="set-body"></div>
+</dialog>
+<input type="file" id="restore-file" accept="application/json,.json" class="sr" tabindex="-1">
+</body>
+</html>
