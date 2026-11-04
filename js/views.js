@@ -61,7 +61,7 @@ function buySection() {
     ${all.length ? `<div class="buy-list">${[...open, ...done].map(line).join("")}</div>`
       : `<p class="hint">Things to get from the market stay here until you tick them off. Type several at once with commas, or tap the mic and say “buy batteries and bulbs”.</p>`}
     ${done.length ? `<div class="buy-foot"><span class="hint">Ticked off: ${done.length}</span><button class="btn small ghost danger" type="button" data-act="clear-bought">Delete all bought</button></div>` : ""}
-  </div>`);
+  </div>`, open.length ? `<button class="link" type="button" data-act="read-buy">Read aloud</button>` : "");
 }
 
 function comingGroups() {

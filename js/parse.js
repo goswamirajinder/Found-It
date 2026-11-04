@@ -118,12 +118,20 @@ const BUY_HI = /^(?:(?:bazaar|bazar|market|dukaan|dukan)\s+se\s+)?(.+?)\s+(?:lan
 const BOUGHT = /^(?:i\s+(?:have\s+|just\s+)?|we\s+(?:have\s+)?)?(?:bought|purchased)\s+(?:the\s+)?(.+?)(?:\s+(?:from|at)\s+.+)?$/i;
 const BOUGHT_HI = /^(.+?)\s+(?:le aaya|le aayi|le aaye|le aya|le ayi|kharid liya|kharid li|kharid liye)(?:\s+(?:hai|hain))?$/i;
 
-// One sentence in, one intent out: find | keep | note | out | back | buy | bought | none.
+// Asking to hear the list: "speak out my shopping list", "what do I need to buy?", "kya kya lana hai".
+const LIST_ASK = /^(?:please\s+)?(?:speak|read|tell|show|say|give|list|open|what|which|sunao|suna|batao|bata|dikhao|bolo)\b|\b(?:sunao|suna do|batao|bata do|dikhao|bolo)$|\?$/i;
+const LIST_WHAT = /\b(?:shopping|grocery|groceries|market|to[- ]?buy|buying)(?:\s+list)?\b|\b(?:need|have|got) to buy\b|\bshould (?:i|we) buy\b/i;
+const LIST_HI = /\bkya(?:\s+kya)?\s+(?:lana|lani|laana|kharidna|kharidni)\s+(?:hai|hain|he)\b/i;
+// A request to the app that matched nothing else must not end up saved as a note.
+const APP_ASK = /^(?:please\s+)?(?:speak|read|tell me|show|open|play|sunao|batao|dikhao)\b.*\b(?:list|notes|boxes|everything)\b/i;
+
+// One sentence in, one intent out: find | keep | note | out | back | buy | bought | list | help | none.
 export function parseCommand(raw, knownRooms = []) {
   const text = String(raw || "").replace(/\s+/g, " ").trim().replace(/^(?:ok(?:ay)?|hey|hi|hello|please|found it)[,.!\s]+/i, "");
   if (!text) return {intent: "none", text};
   let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
   if (m && m[1]) return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
+  if (LIST_HI.test(text) || (LIST_WHAT.test(text) && (LIST_ASK.test(text) || /^(?:my\s+|the\s+)?(?:shopping|grocery|market)\s+list$/i.test(text)))) return {intent: "list", text};
   m = text.match(BUY_LIST) || text.match(BUY_LEAD) || text.match(BUY_HI);
   if (m && splitList(m[1]).length) return {intent: "buy", items: splitList(m[1]), text};
   m = text.match(BOUGHT) || text.match(BOUGHT_HI);
@@ -138,6 +146,7 @@ export function parseCommand(raw, knownRooms = []) {
   if (m) return {intent: "out", query: m[1], text};
   m = text.match(/^(.+?)\s+(?:nikala|nikali|nikale|nikal liya|nikal li|nikaal liya|nikaala)(?:\s+hai)?$/i);
   if (m) return {intent: "out", query: m[1].replace(/\s+ko$/i, ""), text};
+  if (APP_ASK.test(text)) return {intent: "help", text};
   // Sightings and passing thoughts are notes even when they mention a place.
   if (/^(?:i\s+)?(?:saw|seen|spotted|noticed|liked|loved|met|heard|thinking|idea)\b/i.test(text)) return {intent: "note", text: cap(text)};
   const p = parseLine(text, knownRooms);

@@ -29,6 +29,7 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “I put the lights back in the loft” | Puts it back somewhere new and keeps the old place in its history |
 | “Buy AA batteries, bulbs and atta” / “Doodh aur bread lana hai” | Adds them to the shopping list |
 | “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
+| “Read my shopping list” / “What do I need to buy?” / “Kya kya lana hai?” | Reads the shopping list aloud |
 
 Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings.
 

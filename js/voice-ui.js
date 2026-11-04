@@ -51,6 +51,13 @@ export function handle(text) {
   if (cmd.intent === "note") return confirmNote(cmd);
   if (cmd.intent === "buy") return confirmBuy(cmd.items);
   if (cmd.intent === "bought") return confirmBought(cmd.query);
+  if (cmd.intent === "list") return readList(true);
+  if (cmd.intent === "help") {
+    const a = "I can read out your shopping list, or find where something is. Try “read my shopping list” or “where is my passport”.";
+    result(`<p class="answer">${esc(a)}</p>`);
+    say(a);
+    return;
+  }
   result(`<p class="answer">Say what you put where, ask where something is, or say “note” and anything else.</p>`);
 }
 
@@ -102,6 +109,22 @@ function confirmNote(cmd) {
     },
     edit: () => openCapture("note", {text, remindOn})
   });
+}
+// "You have 3 things to buy: atta, bulbs and milk." Used by voice and by the list's Read aloud button.
+export function shoppingText() {
+  const open = S.items.filter(i => i.kind === "buy" && !i.bought).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  if (!open.length) return {open, text: "Your shopping list is empty."};
+  const names = open.map(i => i.name);
+  const joined = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return {open, text: `You have ${open.length} thing${open.length === 1 ? "" : "s"} to buy: ${joined}.`};
+}
+// Someone who asks to hear the list gets it read out even when spoken answers are off.
+function readList(speakIt) {
+  const {open, text} = shoppingText();
+  result(`<p class="answer">${esc(text)}</p>${open.length ? `<div class="buy-list">${open.map(i => `<div class="buy-row">
+    <button class="tick" type="button" data-vbuy="${esc(i.id)}" aria-pressed="false" aria-label="Mark as bought: ${esc(i.name)}"></button>
+    <span class="buy-name">${esc(i.name)}</span><span></span></div>`).join("")}</div><p class="hint">Tap a circle when you've bought it.</p>` : ""}`);
+  if (speakIt) speak(text, S.settings.voiceLang);
 }
 function confirmBuy(names) {
   pending({
@@ -174,11 +197,12 @@ async function commit() {
 export function wireVoice() {
   $("#voice-mic").addEventListener("click", () => { if (!canListen) { $("#v-text").focus(); return; } if (rec) { rec.stop(); } else start(); });
   $("#voice-form").addEventListener("submit", e => { e.preventDefault(); const t = $("#v-text").value.trim(); if (!t) return; stop(); $("#v-text").value = ""; handle(t); });
-  $("#voice-result").addEventListener("click", e => {
+  $("#voice-result").addEventListener("click", async e => {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.open) { $("#voice-dlg").close(); openItem(b.dataset.open); return; }
     if (b.dataset.box) { $("#voice-dlg").close(); S.openBox(b.dataset.box); return; }
+    if (b.dataset.vbuy) { await patchEntry(b.dataset.vbuy, {bought: true, boughtAt: new Date().toISOString()}); readList(false); return; }
     const v = b.dataset.v;
     if (v === "save") commit();
     else if (v === "cancel") { clearPending(); result(`<p class="answer">Cancelled. Nothing was saved.</p>`); }

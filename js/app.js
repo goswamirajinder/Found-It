@@ -4,10 +4,10 @@ import {wireBoxes, openBox, newCode} from "./boxes.js";
 import {splitList} from "./parse.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
-import {wireVoice, openVoice} from "./voice-ui.js";
+import {wireVoice, openVoice, shoppingText} from "./voice-ui.js";
 import {exportAll, importAll, wipeAll, getMeta, setMeta} from "./store.js";
 import {esc, newId, today, addDays} from "./data.js";
-import {canListen, canLocate, locate, locError} from "./device.js";
+import {canListen, canLocate, locate, locError, speak} from "./device.js";
 
 function render() {
   const q = $("#q").value.trim();
@@ -196,6 +196,7 @@ function wire() {
     else if (act === "keep" || act === "note") openCapture(act === "keep" ? "item" : "note");
     else if (act === "install" && S.installEvent) { S.installEvent.prompt(); await S.installEvent.userChoice.catch(() => null); S.installEvent = null; render(); }
     else if (act === "clear-examples") { for (const it of S.items.filter(i => i.example)) await removeEntry(it); toast("Examples cleared"); }
+    else if (act === "read-buy") speak(shoppingText().text, S.settings.voiceLang);
     else if (act === "clear-bought") { for (const it of S.items.filter(i => i.kind === "buy" && i.bought)) await removeEntry(it); toast("Bought things deleted"); }
   });
   // Shopping list: several things at once with commas or "and"; the box stays focused for the next one.

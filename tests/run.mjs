@@ -59,6 +59,12 @@ t("shopping list", () => {
   assert.deepEqual(pick(c("I bought the batteries"), ["intent", "query"]), {intent: "bought", query: "batteries"});
   assert.deepEqual(pick(c("doodh le aaya"), ["intent", "query"]), {intent: "bought", query: "doodh"});
   assert.equal(c("I put the milk in the fridge").intent, "keep");
+  for (const s of ["speak out my shopping list", "Read my shopping list", "What's on my shopping list?", "What do I need to buy?",
+    "shopping list", "Tell me what to buy", "shopping list sunao", "kya kya lana hai", "Show me things to buy"]) assert.equal(c(s).intent, "list", s);
+  assert.equal(c("shopping list: milk, eggs").intent, "buy");
+  assert.equal(c("I need to buy milk").intent, "buy");
+  assert.equal(c("Read my notes list").intent, "help");
+  assert.equal(c("Tell Ramesh to fix the tap").intent, "note");
 });
 
 t("box labels decode to the same text", () => {
