@@ -1,4 +1,4 @@
-// What the main column shows: home, search results, one room, or all notes.
+// What the main column shows: home, search results, one room, or everything in General info.
 import {S, items, notes, roomsList, callTarget} from "./state.js";
 import {callLink} from "./people.js";
 import {esc, icon, shortDate, fmtDate, ymd, today, daysBetween, OCCASIONS, nextDate, whenText, STARTERS} from "./data.js";
@@ -72,7 +72,7 @@ function listSection(kind) {
   const when = i => i.remindOn ? `${daysBetween(today(), i.remindOn) < 0 ? "Was due" : "Due"} ${shortDate(i.remindOn + "T12:00")}` : shortDate(i.keptAt);
   const line = i => `<div class="buy-row${i.bought ? " done" : ""}">
     <button class="tick" type="button" data-tick="${esc(i.id)}" aria-pressed="${i.bought}" aria-label="${i.bought ? L.tickOff : L.tickOn}: ${esc(i.name)}">${i.bought ? icon("check") : ""}</button>
-    <span class="buy-name">${esc(i.name)}</span>
+    <button class="buy-name" type="button" data-open="${esc(i.id)}">${esc(i.name)}</button>
     ${i.bought ? `<span class="buy-acts">${kind === "buy" ? `<button class="btn small" type="button" data-put="${esc(i.id)}">Put away</button>` : ""}<button class="btn small ghost danger" type="button" data-del="${esc(i.id)}">Delete</button></span>`
       : `<span class="buy-acts"><span class="hint">${esc(when(i))}</span>${kind === "todo" && callTarget(i.name) ? `<button class="btn small call-btn" type="button" data-call="${esc(i.id)}" aria-label="Call: ${esc(i.name)}">${icon("phone")}</button>` : ""}</span>`}</div>`;
   const n = all.length, confirming = S.confirmClear && S.confirmClear[kind];
@@ -85,7 +85,7 @@ function listSection(kind) {
     ${!n ? "" : confirming
       ? `<div class="confirm"><p style="margin:0">${n === 1 ? "Delete the 1 thing" : `Delete all ${n} things`} on the ${L.listName}? This can't be undone.</p>
           <div class="row"><button class="btn dark" type="button" data-act="clear-list-yes" ${k}>Delete ${n === 1 ? "it" : "all"}</button><button class="btn" type="button" data-act="clear-list-no" ${k}>Keep ${n === 1 ? "it" : "them"}</button></div></div>`
-      : `<div class="buy-foot"><span class="hint">${done.length ? `Ticked off: ${done.length}` : `${n} on the list`}</span>
+      : `<div class="buy-foot"><span class="hint">${done.length ? `Ticked off: ${done.length}` : `${n} on the list`}. Tap one to change it.</span>
           <span class="buy-acts">${done.length ? `<button class="btn small ghost danger" type="button" data-act="clear-done" ${k}>${L.clearDone}</button>` : ""}<button class="btn small ghost danger" type="button" data-act="clear-list" ${k}>Delete all</button></span></div>`}
   </div>`, open.length ? `<button class="link" type="button" data-act="read-list" ${k}>Read aloud</button>` : "");
 }
@@ -114,7 +114,7 @@ function hello() {
     <p>Save where you put things, and anything else on your mind. Each entry keeps a photo, the date you kept it and, if you like, where you were.</p>
     <div class="starts">
       <button class="start" type="button" data-act="keep">${icon("plus")}<b>Put something away</b><span>Passport, medicines, Diwali lights</span></button>
-      <button class="start" type="button" data-act="note">${icon("note")}<b>Note anything</b><span>A thought, a number, something you saw</span></button>
+      <button class="start" type="button" data-act="note">${icon("note")}<b>General info</b><span>A number, a thought, anything to remember</span></button>
     </div>
     <p class="say">Or tap the mic and say: “I kept the passport in the steel almirah in the bedroom.”</p>
     <div class="chips">${STARTERS.map(s => `<button class="chip" type="button" data-starter="${esc(s)}">${esc(s)}</button>`).join("")}</div>
@@ -138,7 +138,7 @@ export function viewHome() {
   const exp = S.items.filter(i => i.expiry && daysBetween(today(), i.expiry) <= 60).sort((a, b) => a.expiry.localeCompare(b.expiry));
   if (exp.length) out.push(sec("Expiring soon", list(exp)));
   const ns = notes().sort(byNewest);
-  if (ns.length) out.push(sec("Notes and information", list(ns.slice(0, 4)), ns.length > 4 ? `<button class="link" type="button" data-act="notes">See all ${ns.length}</button>` : ""));
+  if (ns.length) out.push(sec("General info", list(ns.slice(0, 4)), ns.length > 4 ? `<button class="link" type="button" data-act="notes">See all ${ns.length}</button>` : ""));
   const recent = items().sort(byNewest).slice(0, 6);
   if (recent.length) out.push(sec("Recently put away", list(recent)));
   const bx = boxes();
@@ -151,7 +151,7 @@ export function viewHome() {
 export function viewSearch(q) {
   const res = searchItems(q, S.items);
   return sec(res.length ? `${res.length} ${res.length === 1 ? "match" : "matches"}` : "No matches",
-    res.length ? list(res) : `<p class="empty-note">Nothing matches “${esc(q)}” yet. Try another word, or a word from a note.</p>`);
+    res.length ? list(res) : `<p class="empty-note">Nothing matches “${esc(q)}” yet. Try another word, in English or Hinglish.</p>`);
 }
 export function viewRoom(room) {
   const k = room.toLowerCase();
@@ -168,6 +168,6 @@ export function viewRoom(room) {
 }
 export function viewNotes() {
   const ns = notes().sort(byNewest);
-  return `<div><button class="back btn ghost small" type="button" data-act="home">‹ Home</button><h2 class="room-h">Notes and information</h2>
-    <p class="hint">${plural(ns.length, "note")}</p></div>${list(ns)}`;
+  return `<div><button class="back btn ghost small" type="button" data-act="home">‹ Home</button><h2 class="room-h">General info</h2>
+    <p class="hint">${ns.length} ${ns.length === 1 ? "entry" : "entries"}. Search finds any word in them, typed in English, Hinglish or Hindi.</p></div>${list(ns)}`;
 }

@@ -5,7 +5,7 @@ import {callLink, openPerson} from "./people.js";
 import {esc, cap, newId, ago, fmtDate, daysBetween, today} from "./data.js";
 import {parseCommand, parseWhen, buyItems, splitItems, todoItems} from "./parse.js";
 import {searchItems, rank, guessCategory, guessOccasion} from "./search.js";
-import {canListen, listen, voiceError, speak, stopSpeaking, locate, nearest} from "./device.js";
+import {canListen, listen, voiceError, speak, stopSpeaking, locate, nearest, canOpenApps, dial} from "./device.js";
 import {row, tapeHtml, dayOf, LISTS, listItems} from "./views.js";
 import {openCapture, openItem, finishMove} from "./sheets.js";
 
@@ -69,7 +69,7 @@ export function handle(text) {
     say(a);
     return;
   }
-  result(`<p class="answer">Say what you put where, ask where something is, or say “note” and anything else.</p>`);
+  result(`<p class="answer">Say what you put where, ask where something is, or say “info” and anything worth remembering.</p>`);
 }
 
 function showFind(q) {
@@ -95,8 +95,14 @@ async function hereNow() {
     return {...p, label: n ? n.label : ""};
   } catch (e) { return null; }
 }
+// Saves a sentence under General info (the app's notes), with a reminder day if one was said.
+async function saveInfo(text, remindOn = null) {
+  const now = new Date().toISOString();
+  await saveEntry({id: newId(), kind: "note", name: text, remindOn, photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
+  return remindOn ? T().notedRemind(fmtDate(remindOn)) : T().noted;
+}
 function confirmKeep(p) {
-  const it = {name: p.name, room: p.room, spot: p.spot};
+  const it = {name: p.name, room: p.room, spot: p.spot}, said = cap(cleanEnd(lastText));
   pending({
     html: `Save <b>${esc(p.name)}</b> ${tapeHtml(it)}`,
     label: "Save",
@@ -106,7 +112,8 @@ function confirmKeep(p) {
         status: "kept", history: [], photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
       return T().saved(p.name, whereText(p));
     },
-    edit: () => openCapture("item", {name: p.name, room: p.room, spot: p.spot})
+    edit: () => openCapture("item", {name: p.name, room: p.room, spot: p.spot}),
+    alts: said ? [{label: "Save in General info instead", run: () => saveInfo(said)}] : []
   });
 }
 function confirmNote(cmd) {
@@ -114,13 +121,9 @@ function confirmNote(cmd) {
   const remindOn = w.date || (cmd.remind ? w.tomorrow : null);
   const text = cap(w.date ? w.rest : cmd.text);
   pending({
-    html: `Note: <b>${esc(text)}</b>${remindOn ? `<br>Reminder on ${esc(fmtDate(remindOn))}` : ""}`,
-    label: "Save note",
-    run: async () => {
-      const now = new Date().toISOString();
-      await saveEntry({id: newId(), kind: "note", name: text, remindOn, photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
-      return remindOn ? T().notedRemind(fmtDate(remindOn)) : T().noted;
-    },
+    html: `General info: <b>${esc(text)}</b>${remindOn ? `<br>Reminder on ${esc(fmtDate(remindOn))}` : ""}`,
+    label: "Save",
+    run: () => saveInfo(text, remindOn),
     edit: () => openCapture("note", {text, remindOn}),
     alts: [{label: "Add to To buy instead", run: () => addToList("buy", thingsToBuy(text))}, {label: "Add to To do instead", run: () => addToList("todo", thingsToDo(text))}]
   });
@@ -199,12 +202,21 @@ function confirmTick(kind, q) {
   });
 }
 const confirmBought = q => confirmTick("buy", q);
-// "Call mom": a button that opens the dialer (a web app can't ring by itself); a name it doesn't know gets linked once.
+// "Call mom": the dialer opens by itself with the number in. Android still wants its own call button pressed,
+// and lets a page open the dialer only within a few seconds of a tap, so after a long pause the Call button does it.
+// A name it doesn't know gets linked to a contact once.
 function confirmCall(who) {
   const p = findPerson(who), t = T();
-  const a = p ? t.callTap(p.name) : t.callUnknown(cap(who));
-  result(`<p class="answer">${esc(a)}</p>${p ? callLink(p) : `<div class="row"><button class="btn dark" type="button" data-v="link" data-who="${esc(who)}">Link ${esc(who)} to a contact</button></div>`}`);
-  say(a);
+  if (!p) {
+    const a = t.callUnknown(cap(who));
+    result(`<p class="answer">${esc(a)}</p><div class="row"><button class="btn dark" type="button" data-v="link" data-who="${esc(who)}">Link ${esc(who)} to a contact</button></div>`);
+    say(a);
+    return;
+  }
+  const now = canOpenApps(), a = now ? t.calling(p.name) : t.callTap(p.name);
+  result(`<p class="answer">${esc(a)}</p>${callLink(p)}`);
+  if (now) dial(p.tel);
+  else say(a);
 }
 function pickList(q, msg) {
   const res = searchItems(q, S.items.filter(i => i.kind === "item")).slice(0, 5);
@@ -262,7 +274,7 @@ export function wireVoice() {
     const v = b.dataset.v;
     if (v === "save") commit();
     else if (v === "cancel") { clearPending(); result(`<p class="answer">${esc(T().cancelled)}</p>`); }
-    else if (v === "link") { $("#voice-dlg").close(); openPerson(b.dataset.who); }
+    else if (v === "link") { $("#voice-dlg").close(); openPerson(b.dataset.who, null, true); }
     else if (v === "alt" && P && P.alts[b.dataset.i]) { const a = P.alts[b.dataset.i]; clearPending(); const msg = await a.run(); result(`<p class="answer">${esc(msg)}</p>`); say(msg); }
     else if (v === "edit" && P) { const ed = P.edit; clearPending(); $("#voice-dlg").close(); ed(); }
   });

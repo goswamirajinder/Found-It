@@ -17,40 +17,56 @@ export const CATS = [
   ["photos", "Photos & albums", "photo photos photograph photographs album albums picture pictures frame frames negatives"],
   ["festive", "Festive & seasonal", "diwali diya diyas rangoli lights jhalar lantern kandil holi pichkari christmas xmas decoration decorations toran garland rakhi puja pooja thali idol murti"],
   ["electronics", "Electronics", "charger chargers cable cables adapter adaptor remote phone mobile laptop headphones earphones earbuds battery batteries camera harddisk pendrive usb router extension powerbank torch bulb bulbs"],
-  ["keys", "Keys", "key keys chabi chaabi chabhi keychain keyring lock locks"],
-  ["valuables", "Jewellery & valuables", "jewellery jewelry gold silver necklace ring rings bangles earrings chain watch cash coins gehne zevar locker"],
-  ["clothes", "Clothes & bedding", "saree sarees sari lehenga suit suits kurta kurtas dupatta sweater sweaters woollens woolens jacket shawl quilt quilts razai blanket blankets bedsheet bedsheets curtains shoes clothes uniform"],
+  ["keys", "Keys", "key keys chabi chaabi chabhi kunji keychain keyring lock locks tala taala"],
+  ["valuables", "Money & valuables", "money cash paisa paise rupees rupaye nakad jewellery jewelry gold sona silver chandi necklace ring rings angoothi bangles earrings chain watch ghadi coins gehne zevar locker"],
+  ["clothes", "Clothes & bedding", "saree sarees sari lehenga suit suits kurta kurtas dupatta sweater sweaters woollens woolens jacket shawl quilt quilts razai blanket blankets bedsheet bedsheets curtains shoes chappal joote kapde kapda clothes uniform"],
   ["tools", "Tools & repair", "tool tools toolkit toolbox screwdriver hammer pliers spanner wrench drill glue fevicol nails screws ladder fuse"],
   ["kitchen", "Kitchen", "cooker mixer grinder utensils crockery tiffin flask kadhai tawa spices masala"],
   ["other", "Other", ""]
 ];
 export const catLabel = id => (CATS.find(c => c[0] === id) || CATS[CATS.length - 1])[1];
 
+// Words that mean the same thing, in English and in Hindi as people type it. Spelling variants (pese, chaabee, दवाई) are matched by search.js.
 export const SYN = [
   "light lighting jhalar ladi fairy string led bulb serial", "diya diye deepak lamp candle",
   "diwali deepavali deepawali dipawali depawali divali", "almirah almira almari alamari cupboard wardrobe closet cabinet godrej",
-  "loft tand parchhatti parchatti attic dochatti", "trunk box bakas baksa sandook sanduk peti tin suitcase dabba",
-  "drawer daraaz draz", "medicine meds tablet pill capsule syrup dawai dawa dava davai strip",
+  "loft tand parchhatti parchatti attic dochatti", "trunk box bakas baksa sandook sanduk peti tin suitcase dabba dibba",
+  "drawer daraaz draz", "medicine meds tablet pill capsule syrup dawai dawa dava davai strip goli",
   "prescription parchi parcha rx", "bp pressure hypertension", "sugar diabetes glucometer",
-  "document docs paper kagaz kaagaz file folder certificate", "passport visa", "aadhaar aadhar adhaar",
-  "photo photograph picture pic album tasveer tasvir", "key chabi chaabi chabhi chaabhi keychain keyring",
+  "document docs paper kagaz kaagaz kagzat file folder certificate", "passport visa", "aadhaar aadhar adhaar",
+  "photo photograph picture pic album tasveer tasvir", "key chabi chaabi chabhi chaabhi keychain keyring kunji",
   "charger cable adapter adaptor wire", "scissor kainchi kenchi", "torch flashlight", "extension spike multiplug",
-  "jewellery jewelry jewel gold ornament gehne gehna zevar", "warranty guarantee bill receipt invoice",
+  "jewellery jewelry jewel gold ornament gehne gehna zevar sona", "warranty guarantee bill receipt invoice",
   "sweater woollen woolen jacket shawl muffler thermal", "quilt razai rajai blanket kambal comforter duvet",
   "umbrella chhata chhatri chata raincoat", "tool toolkit toolbox screwdriver hammer plier spanner wrench",
   "saree sari lehenga kurta dupatta", "kitchen rasoi", "puja pooja mandir temple", "living hall drawing lounge",
-  "store storeroom storage godown", "spectacle glass specs chashma chasma", "wallet purse batua",
-  "paisa paise paison money cash rupee rupees naqad nakad", "mom mummy mumma mummyji maa mother mammi mamma", "dad papa pitaji father daddy",
+  "store storeroom storage godown", "spectacle glass specs chashma chasma ainak", "wallet purse batua",
+  "paisa paise paison money cash rupee rupees rupaye rupaiye rupya naqad nakad rokda", "mom mummy mumma mummyji maa mother mammi mamma", "dad papa pitaji father daddy",
   "brother bhai bhaiya", "sister didi behen", "wife biwi patni", "husband pati", "son beta", "daughter beti",
-  "cheque chequebook checkbook passbook", "insurance policy lic mediclaim", "christmas xmas",
-  "holi pichkari pichkaari gulal", "battery cell", "car gaadi gadi", "parking parked park"
+  "cheque chequebook checkbook passbook", "insurance policy lic mediclaim bima", "christmas xmas",
+  "holi pichkari pichkaari gulal", "battery cell", "car gaadi gadi", "parking parked park",
+  "silver chandi chaandi", "ring angoothi anguthi", "earring jhumka jhumki kundal", "bangle chudi choodi kangan", "watch ghadi",
+  "clothes clothing kapde kapda kapre kapra", "shoe joota joote juta chappal slipper sandal", "bag thaila thaili jhola", "book kitab kitaab",
+  "bed palang bistar", "pillow takiya", "bottle botal", "mirror sheesha shisha aaina", "door darwaza darwaja", "window khidki khirki",
+  "roof chhat", "stairs staircase ladder seedhi sidhi", "table mez mej", "chair kursi", "bucket balti", "fridge refrigerator",
+  "electricity bijli bijlee", "water paani pani", "milk doodh dudh", "gas cylinder lpg", "number phone mobile contact",
+  "password passcode pin", "rent kiraya", "doctor daktar", "hospital aspatal", "school vidyalaya", "market bazaar bazar mandi",
+  "shop dukaan dukan", "house home ghar makaan makan", "office daftar", "scooter scooty activa", "bike motorcycle motorbike",
+  "cycle bicycle saikil", "wedding marriage shaadi shadi vivah", "birthday janamdin", "gift tohfa", "sweets mithai",
+  "rice chawal", "flour atta aata", "sugar cheeni chini shakkar", "salt namak", "oil tel", "tea chai", "vegetable sabzi sabji",
+  "fruit phal", "tv television", "fan pankha", "lock tala taala", "bathroom washroom toilet", "neighbour neighbor padosi",
+  "loan karz karza", "salary tankhwah tankha", "account khata", "information info jaankari jankari"
 ];
 
-// Words a search or a spoken question carries that say nothing about the thing itself (English and Hinglish).
+// Words a search or a spoken question carries that say nothing about the thing itself (English, Hinglish and Hindi).
 export const STOP = new Set(("a an the my our your his her their of for to in on at is are was were where did do does i we you me it its kept keep put placed place " +
   "find found search look looking whats what which some any all with and or there here have has had been be can could should would please tell show " +
   "ko ka ki ke se ne mera meri mere kahan kaha kahaan kidhar hai hain rakha rakhi rakhe tha thi the gaya gayi maine humne " +
-  "मेरा मेरी मेरे कहाँ कहां किधर है हैं रखा रखी रखे था थी").split(" "));
+  "mein main mai mei par pe tak liye wala wali wale waala waali waale apna apni apne hamara hamari hamare tera teri tere tumhara tumhari " +
+  "uska uski uske unka unki unke yeh ye woh wo vo kya kyaa kaun kab kaise kitna kitni kitne kis kisne kahin kahi he h ho hoga hogi " +
+  "hua hui hue huye raha rahi rahe rakkha rakkhi rakkhe rakh pada padi pade liya aur ya bhi hi batao bataiye bata dikhao " +
+  "dhundo dhoondo khojo karo kar karna kiya koi kuch abhi " +
+  "मेरा मेरी मेरे कहाँ कहां किधर है हैं रखा रखी रखे था थी में मे पर पे का की के को से ने क्या कौन कब कैसे वाला वाली वाले और भी तो ही हुए हुआ हुई").split(" "));
 
 // Room words the one-line parser recognises; rank 1 wins over 2 and 3 (a loft is usually inside a named room).
 export const ROOM_WORDS = [["master bedroom", 1], ["guest bedroom", 1], ["guest room", 1], ["kids room", 1], ["kids bedroom", 1], ["children room", 1], ["bedroom", 1], ["bed room", 1], ["living room", 1], ["drawing room", 1], ["sitting room", 1], ["hall", 1], ["lounge", 1], ["kitchen", 1], ["dining room", 1], ["dining", 1], ["puja room", 1], ["pooja room", 1], ["mandir", 1], ["prayer room", 1], ["study room", 1], ["study", 1], ["store room", 1], ["storeroom", 1], ["storage room", 1], ["balcony", 1], ["verandah", 1], ["bathroom", 1], ["washroom", 1], ["garage", 1], ["office", 2], ["loft", 2], ["attic", 2], ["terrace", 2], ["car", 3]];

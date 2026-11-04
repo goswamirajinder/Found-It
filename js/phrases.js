@@ -1,12 +1,14 @@
 // Every sentence the app says back, in English or Hinglish (Settings › Voice › Answers in).
 // Hinglish is written in Roman letters, the way people type it, and read aloud with an Indian English voice.
 
+const trim = t => String(t || "").replace(/[\s.!?।]+$/, "");
+
 const EN = {
   and: "and",
   due: n => (n === 0 ? "today" : n === 1 ? "tomorrow" : n === -1 ? "yesterday" : null),
   dueOn: d => `on ${d}`,
   notFound: q => `I couldn't find anything for “${q}”.`,
-  noteFrom: (d, t) => `Your note from ${d}: ${t}`,
+  noteFrom: (d, t) => `${trim(t)}. Saved on ${d}.`,
   onBuy: n => `${n} is on your shopping list.`,
   boughtOn: (n, d) => `You bought ${n} on ${d}.`,
   onTodo: (n, due) => `“${n}” is on your to-do list${due ? `, ${due}` : ""}.`,
@@ -18,8 +20,8 @@ const EN = {
   listCount: (k, n) => `You have ${n} thing${n === 1 ? "" : "s"} ${k === "todo" ? "to do" : "to buy"}`,
   added: (k, names) => `Added ${names} to your ${k === "todo" ? "to-do list" : "shopping list"}.`,
   saved: (n, where) => `Saved. ${n}: ${where}.`,
-  noted: "Noted.",
-  notedRemind: d => `Noted. I'll remind you on ${d}.`,
+  noted: "Saved in General info.",
+  notedRemind: d => `Saved in General info. I'll remind you on ${d}.`,
   tickedBuy: n => `Ticked off ${n}. When you put it away, tap Put away next to it.`,
   tickedTodo: n => `Ticked off ${n}.`,
   outOk: n => `Okay. Tell me when the ${n} goes back.`,
@@ -27,6 +29,7 @@ const EN = {
   backNew: (n, where) => `Updated. ${n}: ${where}.`,
   cancelled: "Cancelled. Nothing was saved.",
   help: "I can read out your shopping list or to-do list, find where something is, or call someone. Try “read my to-do list”, “where is my passport” or “call mom”.",
+  calling: n => `Opening the dialer for ${n}.`,
   callTap: n => `Tap the button to call ${n}.`,
   callUnknown: n => `I don't have a number for ${n} yet. Pick them from your contacts or type the number.`,
   didntCatch: "I didn't catch that. Tap the mic and try again.",
@@ -38,7 +41,7 @@ const HI = {
   due: n => (n === 0 ? "aaj" : n === 1 ? "kal" : n === -1 ? "kal tha" : null),
   dueOn: d => `${d} ko`,
   notFound: q => `“${q}” nahi mila.`,
-  noteFrom: (d, t) => `${d} ka note: ${t}`,
+  noteFrom: (d, t) => `${trim(t)}. ${d} ko save kiya tha.`,
   onBuy: n => `${n} shopping list mein hai.`,
   boughtOn: (n, d) => `${n} ${d} ko le aaye the.`,
   onTodo: (n, due) => `“${n}” to-do list mein hai${due ? `, ${due}` : ""}.`,
@@ -50,8 +53,8 @@ const HI = {
   listCount: (k, n) => (k === "todo" ? `${n} kaam karne hain` : `${n} cheezein leni hain`),
   added: (k, names) => `Theek hai, ${names} ${k === "todo" ? "to-do list" : "shopping list"} mein daal diya.`,
   saved: (n, where) => `Save ho gaya. ${n}: ${where}.`,
-  noted: "Note save ho gaya.",
-  notedRemind: d => `Note save ho gaya. ${d} ko yaad dilaya jayega.`,
+  noted: "General info mein save ho gaya.",
+  notedRemind: d => `General info mein save ho gaya. ${d} ko yaad dilaya jayega.`,
   tickedBuy: n => `${n} tick ho gaya. Rakhne ke baad Put away dabaiye.`,
   tickedTodo: n => `${n} ho gaya, tick kar diya.`,
   outOk: n => `Theek hai. ${n} wapas rakhne par bata dijiye.`,
@@ -59,6 +62,7 @@ const HI = {
   backNew: (n, where) => `Badal diya. ${n}: ${where}.`,
   cancelled: "Theek hai, kuch save nahi kiya.",
   help: "Aap pooch sakte hain: “mera passport kahan hai”, “shopping list sunao”, “kya kya karna hai” ya “mummy ko call karo”.",
+  calling: n => `${n} ka number dialer mein khol diya.`,
   callTap: n => `${n} ko call karne ke liye button dabaiye.`,
   callUnknown: n => `${n} ka number abhi save nahi hai. Contacts se chuniye ya number likhiye.`,
   didntCatch: "Samajh nahi aaya. Mic dabakar phir boliye.",

@@ -55,6 +55,17 @@ export async function pickContact() {
 }
 // Opens the phone's dialer with the number filled in; the person taps call there.
 export const telHref = tel => `tel:${String(tel || "").replace(/[^\d+]/g, "")}`;
+// Chrome on Android lets a page open another app (here, the dialer) only within a few seconds of a tap.
+export const canOpenApps = () => typeof navigator === "undefined" || !navigator.userActivation || navigator.userActivation.isActive;
+// Opens the dialer the same way a tap on a Call link does.
+export function dial(tel) {
+  const a = document.createElement("a");
+  a.href = telHref(tel);
+  a.hidden = true;
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
 
 export function locate() {
   return new Promise((res, rej) => {

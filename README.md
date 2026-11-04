@@ -3,13 +3,14 @@
 A phone app for remembering where you put things, and anything else worth remembering.
 
 - **Put something away**: type or say “Diwali lights in the blue trunk on the bedroom loft”, add a photo, and it fills in the item, room and spot.
-- **Note anything** (notes and general information): a thought, a number, something you saw, where you parked, “car mein paise rakhe hain”. Search finds it by any word in it. Each note keeps a photo, the date and time and, if you want, where you were.
+- **General info**: anything else worth remembering: a number, a thought, something you saw, where you parked, “car mein paise rakhe hain”. Each entry keeps a photo, the date and, if you want, where you were.
 - **Voice commands**: tap the big mic and speak. English (India) understands Hinglish too.
-- **Search** forgives typos and knows Hindi words: “lihgts”, “almari”, “chabi”, “passport kahan hai”.
+- **Search** forgives typos and understands Hinglish however it's spelt, and Hindi typed in Devanagari: “lihgts”, “pese kidhar hain”, “chaabhi”, “पैसे”, “bijli ka bill” (finds “electricity bill”). Words like “kahan”, “mein” and “hai” are ignored.
 - **Coming up**: things tagged Diwali, Holi, Christmas, winter, summer or monsoon show on the home screen before you need them.
 - **Taken out, then put back**: things you take out stay on the home screen until you record where they went back.
 - **Shopping list**: things to buy stay at the top of the home screen until you tick them off; then delete them, or tap Put away to record where they went.
 - **To-do list**: jobs work the same way, and a job with a day ("pay the bill tomorrow") shows under Coming up and gets a reminder.
+- **Fix a line**: tap anything on the To buy or To do list to change its words (or its due day). Commas split it into separate lines.
 - **Box labels**: print a QR label for a trunk, box or drawer (Settings › Box labels). Scanning it with the phone's camera shows what's inside, and lets you put something in without saying where.
 - **Date kept**: every entry has the date you kept it, which you can set to an earlier day.
 - **Phone reminders** for festivals, expiry dates, chosen dates and things not put back (Android, once installed).
@@ -22,9 +23,9 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “I kept the passport in the steel almirah in the bedroom” | Saves it: Passport → Bedroom › Steel almirah |
 | “Passport almari mein rakha hai” | Same, in Hinglish |
 | “Where are the Diwali lights?” / “Passport kahan hai?” | Shows the answer and reads it aloud |
-| “Note: the plumber's number is on the fridge” | Saves a note |
+| “Note: the plumber's number is on the fridge” / “Info: …” | Saves it in General info |
 | “Car parked on B2 near pillar 14” | Saves where the car is |
-| “Remind me to renew the car insurance on 20 November” | Saves a note with a reminder |
+| “Remind me to renew the car insurance on 20 November” | Adds it to the to-do list with that day |
 | “I took out the extension board” | Marks it as taken out |
 | “I put the extension board back” | Puts it back in its usual place |
 | “I put the lights back in the loft” | Puts it back somewhere new and keeps the old place in its history |
@@ -33,17 +34,17 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “Bazaar se dudh laane hai, kele laane hain” / “Mujhe dudh aur bread chahiye” / “Aata paneer daliya gobhi” | Each thing becomes its own line on the list, even without commas |
 | “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
 | “Read my shopping list” / “What do I need to buy?” / “Kya kya lana hai?” | Reads the shopping list aloud |
-| “Call mom” / “Mummy ko phone lagao” | Shows a button that opens the dialer (link the name to a contact the first time) |
-| “Car main paise rakhe hain” / “Info: Wi-Fi password is on the router” | Saves it so “paisa kahan hai?” finds it |
+| “Call mom” / “Mummy ko phone lagao” | Opens the dialer with the number (link the name to a contact the first time) |
+| “Car main paise rakhe hain” / “Info: Wi-Fi password is on the router” | Saves it so “paisa kahan hai?” finds it (tap **Save in General info instead** to keep the sentence as it is) |
 | “I have to call mom tomorrow” / “Add pay the bill to my to-do list” / “Mummy ko call karna hai” | Adds to the to-do list, with the day if you said one |
 | “What do I have to do?” / “Kya kya karna hai?” | Reads the to-do list aloud |
 | “Electricity bill done” / “Plumber ko call kar diya” | Ticks it off the to-do list |
 
 Answers can be in English or Hinglish (Settings › Voice › Answers in): “Passport bedroom mein hai”, “2 cheezein leni hain: dudh aur kele”.
 
-**Calling**: say “call mom”, or tap the phone button on a to-do like “Call mom”. The first time, pick the person from your contacts (Chrome on Android) or type the number; it's saved on the phone and remembers the word you used. A web app can't place a call by itself, so the dialer opens with the number and you tap call. Manage numbers in Settings › People to call.
+**Calling**: say “call mom”, or tap the phone button on a to-do like “Call mom”. The first time, pick the person from your contacts (Chrome on Android) or type the number; it's saved on the phone and remembers the word you used. The dialer opens by itself with the number filled in; press its green call button. (Android lets an app other than the phone's own place a call only with phone permission, which a web app can't have, and opens the dialer only within a few seconds of a tap. If you paused for long before speaking, tap **Call** instead.) Manage numbers in Settings › People to call.
 
-Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings. If something you meant to buy is about to be saved as a note, tap **Add to To buy instead**. The mic inside the To buy list adds everything you say straight to the list. Answers are read a little slower than normal speech; change the speed in Settings › Voice.
+Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings. If something you meant to buy is about to be saved in General info, tap **Add to To buy instead**. The mic inside the To buy list adds everything you say straight to the list. Answers are read a little slower than normal speech; change the speed in Settings › Voice.
 
 ## Put it on your phone
 
@@ -60,7 +61,7 @@ The app is a set of plain files with no build step. A phone will only install it
 3. Open the `https://<you>.github.io/<repo>/` address on your phone.
 
 Then install it:
-- **Android (Chrome)**: tap **Install** on the app's home screen, or the browser menu › “Install app”. Long-press the icon for the Speak, Note and Put away shortcuts. Found It also appears in the Share menu, so you can share a link or text into a note.
+- **Android (Chrome)**: tap **Install** on the app's home screen, or the browser menu › “Install app”. Long-press the icon for the Speak, General info and Put away shortcuts. Found It also appears in the Share menu, so you can share a link or text into General info.
 - **iPhone (Safari)**: tap Share › “Add to Home Screen”.
 
 ## What works where

@@ -31,7 +31,7 @@
     <form class="search" id="search-form" role="search">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <label class="sr" for="q">Search everything you saved</label>
-      <input id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="What are you looking for?">
+      <input id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search: paise, chabi, passport…">
       <button type="button" class="clear" id="q-clear" aria-label="Clear search" hidden>&times;</button>
     </form>
   </div>
@@ -41,7 +41,7 @@
 
 <nav class="dock" aria-label="Add something">
   <div class="dock-in">
-    <button class="dock-btn" id="note-btn" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8.5 12h7M8.5 16h5"/></svg><span>Note anything</span></button>
+    <button class="dock-btn" id="note-btn" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8.5 12h7M8.5 16h5"/></svg><span>General info</span></button>
     <button class="mic" id="mic-btn" type="button" aria-label="Speak"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button>
     <button class="dock-btn" id="keep-btn" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Put away</span></button>
   </div>
@@ -54,7 +54,7 @@
     <div class="sh-body">
       <div class="seg" role="tablist" id="cap-mode" aria-label="What are you saving?">
         <button type="button" role="tab" id="mode-item" data-mode="item" aria-selected="true">Where I put something</button>
-        <button type="button" role="tab" id="mode-note" data-mode="note" aria-selected="false">Note or info</button>
+        <button type="button" role="tab" id="mode-note" data-mode="note" aria-selected="false">General info</button>
       </div>
 
       <div class="quick" data-for="item">
@@ -66,7 +66,7 @@
       <div class="field" data-for="note">
         <label for="f-text">What do you want to remember?</label>
         <textarea class="input big" id="f-text" maxlength="1000" placeholder="Car mein paise rakhe hain. Wi-Fi password is on the router. Saw a brass lamp I liked at Dilli Haat."></textarea>
-        <p class="hint">Any information worth keeping: a thought, a number, something you saw. Search finds it by any word in it.</p>
+        <p class="hint">Any information worth keeping: a thought, a number, something you saw. Search finds it by any word in it, typed in English, Hinglish or Hindi.</p>
       </div>
 
       <div class="field">

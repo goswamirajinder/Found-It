@@ -1,4 +1,4 @@
-// The bottom sheets: save something (put away or note), one entry up close, and moved / put back.
+// The bottom sheets: save something (put away, or General info), one entry up close, and moved / put back.
 import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addToList, callTarget} from "./state.js";
 import {callFromText} from "./people.js";
 import {OCCASIONS, CATS, catLabel, esc, cap, isYmd, newId, nextDate, fmtDate, fmtDateTime, ymd, addDays, daysBetween, today, ago} from "./data.js";
@@ -34,7 +34,7 @@ function setMode(mode) {
   $("#mode-item").setAttribute("aria-selected", mode === "item");
   $("#mode-note").setAttribute("aria-selected", mode === "note");
   document.querySelectorAll("#cap-dlg [data-for]").forEach(el => { el.hidden = el.dataset.for !== mode; });
-  $("#cap-title").textContent = F.editing ? "Edit" : mode === "item" ? "Put something away" : "Note anything";
+  $("#cap-title").textContent = F.editing ? "Edit" : mode === "item" ? "Put something away" : "General info";
   $("#photo-hint").textContent = mode === "item" ? "A picture of the shelf or box beats any description." : "Something you saw, a label, a visiting card, a parking sign.";
   $("#date-lbl").textContent = mode === "item" ? "Date you kept it" : "Date";
   syncRemind();
@@ -181,7 +181,7 @@ async function saveCapture(ev) {
     } else {
       await saveEntry({id: newId(), status: "kept", history: [], photoId: null, keptAt: now, createdAt: now, updatedAt: now, ...body});
       if (F.replaces) { const b = S.items.find(i => i.id === F.replaces); if (b) await removeEntry(b); }
-      toast(body.kind === "note" ? "Noted" : `Saved: ${body.name} → ${body.room || "Somewhere"}${body.spot ? " › " + body.spot : ""}`);
+      toast(body.kind === "note" ? "Saved in General info" : `Saved: ${body.name} → ${body.room || "Somewhere"}${body.spot ? " › " + body.spot : ""}`);
     }
     $("#cap-dlg").close();
     if (body.boxId && S.openBox) S.openBox(body.boxId);
@@ -230,7 +230,7 @@ function calLink(it) {
 function drawItem(it) {
   // Shopping and to-do lines share one layout; `buy` covers both, `todo` picks the words.
   const note = it.kind === "note", todo = it.kind === "todo", buy = it.kind === "buy" || todo, src = photoUrl(it.photoId);
-  $("#item-title").textContent = note ? "Note" : it.name;
+  $("#item-title").textContent = note ? "General info" : buy ? (todo ? "To do" : "To buy") : it.name;
   const day = iso => (iso ? fmtDate(ymd(new Date(iso))) : "Unknown");
   const facts = [[note ? "Date" : buy ? "Added" : "Kept on", day(it.keptAt)]];
   if (buy && it.bought) facts.push([todo ? "Done" : "Bought", day(it.boughtAt)]);
@@ -247,9 +247,18 @@ function drawItem(it) {
     : note ? [["to-buy", "Move to To buy", "dark"], ["to-todo", "Move to To do", "dark"], ["to-item", "Turn into Put away", ""], ["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
     : it.status === "out" ? [["putback", "Put it back", "primary"], ["edit", "Edit details", ""]]
     : [["seen", "Found it here", "dark"], ["out", "Taking it out", ""], ["moved", "It's somewhere else", ""], ["edit", "Edit details", ""]];
+  // A line on a list is changed right here: fix what the phone heard, or split it into several with commas.
+  const edit = !buy ? "" : `<form class="d-edit" id="d-edit" novalidate>
+      <div class="field"><label for="d-name">${todo ? "What to do" : "What to buy"}</label>
+        <input class="input" id="d-name" maxlength="300" autocomplete="off" enterkeyhint="done" value="${esc(it.name)}"></div>
+      ${todo ? `<div class="field"><label for="d-due">Due on</label><div class="vtype"><input class="input" type="date" id="d-due" value="${esc(it.remindOn || "")}">
+        <button class="btn" type="button" data-act="due-clear">No date</button></div></div>` : ""}
+      <p class="hint">Commas make separate lines, like ${todo ? "“pay the bill, call the plumber”" : "“milk, bread”"}.</p>
+      <p class="err" id="d-err" role="alert" hidden></p>
+      <button class="btn dark" type="submit" id="d-save" disabled>Save changes</button></form>`;
   $("#item-body").innerHTML = `
     ${src ? `<img class="d-photo" src="${esc(src)}" alt="">` : ""}
-    ${note ? `<p class="d-text">${esc(it.name)}</p>` : buy ? `<p class="hint">${it.bought ? "Ticked off" : "On"} your ${todo ? "to-do list" : "shopping list"}.</p>` : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
+    ${note ? `<p class="d-text">${esc(it.name)}</p>` : buy ? edit : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
       ${it.boxId ? `<button class="btn small" type="button" data-box="${esc(it.boxId)}" style="justify-self:start">In box ${esc(it.boxId)}: open it</button>` : ""}
       <button type="button" class="tape big" data-room="${esc(it.room || "Somewhere")}" aria-label="See everything in ${esc(it.room || "this place")}">${esc(it.room || "Somewhere")}${it.spot ? `<i>›</i>${esc(it.spot)}` : ""}</button>
       ${it.status === "out" ? `<span class="pill out" style="justify-self:start">Taken out ${esc(ago(it.outAt))}</span>` : ""}</div>`}
@@ -258,7 +267,7 @@ function drawItem(it) {
     ${it.place ? `<a class="cal" href="${esc(mapsUrl(it.place))}" target="_blank" rel="noopener">Open this location in Maps</a>` : ""}
     ${calLink(it)}
     ${hist.length ? `<div class="field"><span class="lbl">Earlier places</span><ul class="hist">${hist.map(h => `<li>${esc(h.room || "Somewhere")}${h.spot ? " › " + esc(h.spot) : ""}${h.until ? ` (until ${esc(fmtDate(ymd(new Date(h.until))))})` : ""}</li>`).join("")}</ul></div>` : ""}
-    <div id="d-confirm"><button class="btn ghost danger small" type="button" data-act="delete">Delete this ${note ? "note" : "entry"}</button></div>`;
+    <div id="d-confirm"><button class="btn ghost danger small" type="button" data-act="delete">Delete this entry</button></div>`;
 }
 async function onItemClick(e) {
   const b = e.target.closest("button");
@@ -286,7 +295,7 @@ async function onItemClick(e) {
     else if (act === "out") { await patchEntry(it.id, {status: "out", outAt: new Date().toISOString()}); dlg.close(); toast("Marked as taken out. Tap Put back when it goes back."); }
     else if (act === "putback" || act === "moved") { dlg.close(); openMove(it, act); }
     else if (act === "edit") { dlg.close(); openCapture(it.kind, {}, it); }
-    else if (act === "share") { navigator.share({title: "Found It note", text: it.name}).catch(() => {}); }
+    else if (act === "share") { navigator.share({title: "Found It", text: it.name}).catch(() => {}); }
     else if (act === "delete") {
       $("#d-confirm").innerHTML = `<div class="confirm"><p style="margin:0">Delete “${esc(it.name.slice(0, 80))}”${it.photoId ? " and its photo" : ""}? This can't be undone.</p>
         <div class="row"><button class="btn dark" type="button" data-act="delete-yes">Delete</button><button class="btn" type="button" data-act="delete-no">Keep it</button></div></div>`;
@@ -294,7 +303,24 @@ async function onItemClick(e) {
     }
     else if (act === "delete-no") drawItem(it);
     else if (act === "delete-yes") { await removeEntry(it); dlg.close(); toast("Deleted"); }
+    else if (act === "due-clear") { $("#d-due").value = ""; $("#d-save").disabled = false; }
   } catch (err) { toast("Couldn't save that. Try again."); }
+}
+// Saving a changed list line. Commas split it into several lines, the same as when adding.
+async function saveLine(e) {
+  if (!e.target.closest("#d-edit")) return;
+  e.preventDefault();
+  const it = S.items.find(i => i.id === openId);
+  if (!it) return;
+  const parts = $("#d-name").value.split(/\s*[,;]\s*/).map(x => cap(x.replace(/\s+/g, " ").trim())).filter(Boolean);
+  if (!parts.length) return showErr("#d-err", it.kind === "todo" ? "Type what needs doing." : "Type what to buy.", "#d-name");
+  const due = $("#d-due") ? (isYmd($("#d-due").value) ? $("#d-due").value : null) : it.remindOn;
+  try {
+    await patchEntry(it.id, {name: parts[0], remindOn: due});
+    if (parts.length > 1) await addToList(it.kind, parts.slice(1).map(name => ({name, remindOn: it.kind === "todo" ? due : null})));
+    $("#item-dlg").close();
+    toast(parts.length > 1 ? `Saved, and added ${parts.slice(1).join(", ")}` : "Saved");
+  } catch (err) { showErr("#d-err", "Couldn't save. Try again."); }
 }
 
 /* ---------- moved it, or put it back ---------- */
@@ -374,6 +400,8 @@ export function wireSheets() {
     }
   });
   $("#item-dlg").addEventListener("click", onItemClick);
+  $("#item-dlg").addEventListener("submit", saveLine);
+  $("#item-dlg").addEventListener("input", e => { if (e.target.closest("#d-edit")) $("#d-save").disabled = false; });
   $("#move-dlg").addEventListener("click", async e => {
     const b = e.target.closest("button");
     if (!b) return;

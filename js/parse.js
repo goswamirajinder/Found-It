@@ -244,7 +244,7 @@ export function parseCommand(raw, knownRooms = []) {
   // Phones often add a full stop or question mark; remember the question, then match on the bare words.
   const asked = /\?\s*$/.test(said), text = said.replace(/[\s.!?।]+$/, "");
   if (!text) return {intent: "none", text};
-  let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|info|information|general info|jaankari|jankari|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
+  let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|general information|general info|general jaankari|info|information|jaankari|jankari|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
   // "Call mom", "mummy ko phone lagao": ring someone now. With a day it's a job for later.
   const call = text.match(/^(?:call|phone|ring|dial|give a call to|make a call to)\s+(?:to\s+)?(.+?)(?:\s+(?:now|abhi))?$/i) || text.match(/^(.+?)\s+ko\s+(?:call|phone|fone|ring)\s+(?:karo|kar do|lagao|laga do|milao|mila do)$/i);
   if (call && !m) {

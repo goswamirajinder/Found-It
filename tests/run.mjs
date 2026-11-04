@@ -1,7 +1,7 @@
 // Run with: node tests/run.mjs
 import assert from "node:assert/strict";
 import {parseLine, parseCommand, parseWhen} from "../js/parse.js";
-import {searchItems, guessCategory, guessOccasion} from "../js/search.js";
+import {searchItems, guessCategory, guessOccasion, hkey, devToLatin, norm, stem} from "../js/search.js";
 import {nextDate, whenText, daysBetween, addDays, today} from "../js/data.js";
 import {schedule} from "../js/reminders.js";
 import {qrMatrix} from "../js/qr.js";
@@ -134,6 +134,33 @@ t("calls, information and place-first Hinglish", () => {
   const money = [{id: "m", kind: "item", name: "Paise", room: "Car", spot: "", notes: "", category: "other", keptAt: "2026-11-04"}];
   assert.equal(searchItems("money", money).length, 1);
   assert.equal(searchItems("paisa kahan hai", money).length, 1);
+});
+
+t("searching in Hinglish and Hindi", () => {
+  // Every way of writing one word gets one key.
+  for (const g of [["paisa", "paise", "pese", "paison", "पैसे"], ["chabi", "chaabi", "chabee", "chaabiyan", "चाबी"], ["dawai", "davai", "dawa", "दवाई"],
+    ["kagaz", "kaagaz", "कागज़"], ["almari", "almaari", "अलमारी"], ["kapda", "kapde", "कपड़ा"], ["passport", "pasport", "पासपोर्ट"]])
+    assert.equal(new Set(g.map(w => hkey(stem(norm(w))))).size, 1, g.join(" "));
+  assert.notEqual(hkey("ghadi"), hkey("gaadi"));
+  assert.equal(devToLatin("कपड़ा"), "kapdaa");
+  assert.equal(devToLatin("समझना"), "samajhnaa");
+  let id = 0;
+  const E = (kind, name, room = "", spot = "") => ({id: String(++id), kind, name, room, spot, notes: "", category: "other", keptAt: "2026-11-04"});
+  const items = [E("note", "Car main paise rakhe hain"), E("note", "Bijli ka bill har mahine 10 tareekh ko aata hai"), E("note", "Gas agency ka number 7718955555"),
+    E("note", "दवाई की पर्ची नीली फ़ाइल में है"), E("item", "Ghar ki chaabiyan", "Hall", "Shoe rack"), E("item", "Mummy ka chashma", "Bedroom", "Drawer"),
+    E("item", "Diwali diye", "Loft", "Trunk")];
+  const top = q => (searchItems(q, items)[0] || {}).name;
+  assert.equal(top("pese kidhar hain"), "Car main paise rakhe hain");
+  assert.equal(top("पैसे कहाँ हैं"), "Car main paise rakhe hain");
+  assert.equal(top("electricity bill"), "Bijli ka bill har mahine 10 tareekh ko aata hai");
+  assert.equal(top("gas ka number"), "Gas agency ka number 7718955555");
+  assert.equal(top("dawai ki parchi"), "दवाई की पर्ची नीली फ़ाइल में है");
+  assert.equal(top("chaabhi kahan rakhi hai"), "Ghar ki chaabiyan");
+  assert.equal(top("ainak"), "Mummy ka chashma");
+  assert.equal(top("diya"), "Diwali diye");
+  assert.equal(searchItems("kahan hai", items).length, 0);
+  assert.equal(searchItems("jaankari", items).length, 4);
+  assert.equal(parseCommand("General information: the gas agency number is on the fridge").intent, "note");
 });
 
 t("box labels decode to the same text", () => {
