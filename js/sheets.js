@@ -1,5 +1,6 @@
 // The bottom sheets: save something (put away or note), one entry up close, and moved / put back.
-import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addToList} from "./state.js";
+import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addToList, callTarget} from "./state.js";
+import {callFromText} from "./people.js";
 import {OCCASIONS, CATS, catLabel, esc, cap, isYmd, newId, nextDate, fmtDate, fmtDateTime, ymd, addDays, daysBetween, today, ago} from "./data.js";
 import {guessCategory, guessOccasion} from "./search.js";
 import {parseLine, buyItems, splitItems, todoItems} from "./parse.js";
@@ -241,7 +242,7 @@ function drawItem(it) {
   if (it.expiry) facts.push(["Expires", fmtDate(it.expiry)]);
   if (it.notes) facts.push(["Notes", it.notes]);
   const hist = (it.history || []).filter(h => h.room || h.spot);
-  const acts = todo ? (it.bought ? [["buy-undo", "Not done yet", ""]] : [["buy-done", "Mark as done", "primary"]])
+  const acts = todo ? (it.bought ? [["buy-undo", "Not done yet", ""]] : [["buy-done", "Mark as done", "primary"], ...(callTarget(it.name) ? [["call", "Call", "dark"]] : [])])
     : buy ? (it.bought ? [["buy-put", "Put it away", "primary"], ["buy-undo", "Not bought yet", ""]] : [["buy-done", "Mark as bought", "primary"]])
     : note ? [["to-buy", "Move to To buy", "dark"], ["to-todo", "Move to To do", "dark"], ["to-item", "Turn into Put away", ""], ["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
     : it.status === "out" ? [["putback", "Put it back", "primary"], ["edit", "Edit details", ""]]
@@ -270,6 +271,7 @@ async function onItemClick(e) {
   try {
     if (act === "buy-done") { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); toast(`Ticked off: ${it.name}`); }
     else if (act === "buy-undo") await patchEntry(it.id, {bought: false, boughtAt: null});
+    else if (act === "call") { dlg.close(); callFromText(it.name); }
     else if (act === "buy-put") { dlg.close(); openCapture("item", {name: it.name, replaces: it.id}); }
     // A note that was really a shopping list, a job to do, or "where I put something".
     else if (act === "to-buy" || act === "to-todo") {

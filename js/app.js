@@ -1,6 +1,7 @@
 // Starts the app: loads saved data, draws the home screen, and wires the header, dock and settings.
-import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addToList} from "./state.js";
+import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addToList, people} from "./state.js";
 import {wireBoxes, openBox, newCode} from "./boxes.js";
+import {wirePeople, openPerson, callFromText, callLink} from "./people.js";
 import {thingsToBuy, thingsToDo} from "./voice-ui.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
@@ -36,9 +37,15 @@ function drawSettings() {
     ${canListen ? "" : `<p class="hint">This browser can't listen, so type your commands in the voice sheet, or use the mic on your keyboard. Chrome on Android listens.</p>`}
     <div class="field"><label for="s-lang">Language you speak in</label><select class="input" id="s-lang">${LANGS.map(([v, l]) => `<option value="${v}"${s.voiceLang === v ? " selected" : ""}>${l}</option>`).join("")}</select>
       <p class="hint">English (India) understands Indian names and Hinglish like “passport almari mein rakha”.</p></div>
+    <div class="field"><label for="s-answer">Answers in</label><select class="input" id="s-answer"><option value="en"${s.answerLang !== "hinglish" ? " selected" : ""}>English</option><option value="hinglish"${s.answerLang === "hinglish" ? " selected" : ""}>Hinglish (“Passport bedroom mein hai”)</option></select></div>
     <label class="toggle"><input type="checkbox" id="s-speak"${s.speakAnswers ? " checked" : ""}><span>Read answers aloud</span></label>
     <div class="field"><label for="s-rate">Speaking speed</label><div class="vtype"><select class="input" id="s-rate">${RATES.map(([v, l]) => `<option value="${v}"${s.speechRate === v ? " selected" : ""}>${l}</option>`).join("")}</select><button class="btn" type="button" id="s-rate-try">Try it</button></div></div>
     <label class="toggle"><input type="checkbox" id="s-auto"${s.autoSave ? " checked" : ""}><span>Save spoken entries after a 4-second countdown</span></label>
+  </section>
+  <section class="set-group"><h3>People to call</h3>
+    <p class="hint">Say “call mom”, or tap the phone button on a to-do like “Call mom”, and the dialer opens with the number. Numbers stay on this phone.</p>
+    ${people().map(p => `<div class="place-row"><span>${esc(p.name)} <span class="hint">${esc(p.tel)}</span></span><span class="row">${callLink(p, "Call")}<button class="btn small" type="button" data-person-edit="${esc(p.id)}">Edit</button><button class="btn small ghost danger" type="button" data-person-del="${esc(p.id)}">Remove</button></span></div>`).join("")}
+    <button class="btn" type="button" id="s-person-add">Add someone to call</button>
   </section>
   <section class="set-group"><h3>Location</h3>
     ${canLocate ? `<label class="toggle"><input type="checkbox" id="s-loc"${s.autoLocation ? " checked" : ""}><span>Add where I am to new entries</span></label>
@@ -106,6 +113,9 @@ async function saveBackup() {
 async function onSettingsClick(e) {
   const b = e.target.closest("button");
   if (!b) return;
+  if (b.dataset.personEdit) { openPerson("", S.items.find(i => i.id === b.dataset.personEdit)); return; }
+  if (b.dataset.personDel) { const p = S.items.find(i => i.id === b.dataset.personDel); if (p) await removeEntry(p); drawSettings(); return; }
+  if (b.id === "s-person-add") { openPerson(""); return; }
   if (b.dataset.delPlace) { await removePlace(b.dataset.delPlace); drawSettings(); return; }
   if (b.id === "s-place-add") {
     const label = $("#s-place").value.trim(), m = $("#s-place-msg");
@@ -135,6 +145,7 @@ async function onSettingsChange(e) {
   const t = e.target;
   if (t.id === "s-lang") await saveSettings({voiceLang: t.value});
   else if (t.id === "s-speak") await saveSettings({speakAnswers: t.checked});
+  else if (t.id === "s-answer") await saveSettings({answerLang: t.value === "hinglish" ? "hinglish" : "en"});
   else if (t.id === "s-rate") await saveSettings({speechRate: Number(t.value) || 0.85});
   else if (t.id === "s-auto") await saveSettings({autoSave: t.checked});
   else if (t.id === "s-loc") {
@@ -163,6 +174,8 @@ function wire() {
   wireSheets();
   wireVoice();
   wireBoxes();
+  wirePeople();
+  $("#person-dlg").addEventListener("close", () => { if ($("#set-dlg").open) drawSettings(); });
   $("#q").addEventListener("input", () => { if (!$("#q").value.trim() && S.view.kind !== "home") S.view = {kind: "home"}; render(); });
   $("#q-clear").addEventListener("click", () => { $("#q").value = ""; render(); $("#q").focus(); });
   $("#search-form").addEventListener("submit", e => { e.preventDefault(); $("#q").blur(); });
@@ -188,6 +201,7 @@ function wire() {
     if (!b) return;
     if (b.dataset.open) return openItem(b.dataset.open);
     if (b.dataset.box) return openBox(b.dataset.box);
+    if (b.dataset.call) { const it = S.items.find(i => i.id === b.dataset.call); if (it) callFromText(it.name); return; }
     // Shopping and to-do lines: tick, put away (shopping only) or delete.
     const line = S.items.find(i => i.id === (b.dataset.tick || b.dataset.put || b.dataset.del));
     if (line && b.dataset.tick) return patchEntry(line.id, line.bought ? {bought: false, boughtAt: null} : {bought: true, boughtAt: new Date().toISOString()});

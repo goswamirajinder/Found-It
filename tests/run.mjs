@@ -121,6 +121,21 @@ t("to-do list", () => {
   assert.equal(c("Milk is finished").intent, "buy");
 });
 
+t("calls, information and place-first Hinglish", () => {
+  const c = s => parseCommand(s);
+  for (const [s, who] of [["Call mom", "mom"], ["call the plumber now", "plumber"], ["mummy ko phone lagao", "mummy"], ["Phone Sharma ji", "Sharma ji"]])
+    assert.deepEqual(pick(c(s), ["intent", "who"]), {intent: "call", who}, s);
+  assert.deepEqual(c("call mom tomorrow").items, [{name: "Call mom", remindOn: addDays(today(), 1)}]);
+  for (const [s, name, room, spot] of [["car main paise rakhe hain", "Paise", "Car", ""], ["almari mein passport rakha hai", "Passport", "", "Almari"],
+    ["gaadi ki dikki mein chhata pada hai", "Chhata", "", "Gaadi ki dikki"]])
+    assert.deepEqual(pick(c(s).parsed, ["name", "room", "spot"]), {name, room, spot}, s);
+  assert.deepEqual(pick(c("Info: wifi password is on the router"), ["intent", "text"]), {intent: "note", text: "Wifi password is on the router"});
+  assert.equal(c("jaankari: gas agency ka number fridge par hai").intent, "note");
+  const money = [{id: "m", kind: "item", name: "Paise", room: "Car", spot: "", notes: "", category: "other", keptAt: "2026-11-04"}];
+  assert.equal(searchItems("money", money).length, 1);
+  assert.equal(searchItems("paisa kahan hai", money).length, 1);
+});
+
 t("box labels decode to the same text", () => {
   const {version, size} = qrMatrix("https://goswamirajinder.github.io/Found-It/?box=B001");
   assert.equal(version, 4);

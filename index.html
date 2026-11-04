@@ -54,7 +54,7 @@
     <div class="sh-body">
       <div class="seg" role="tablist" id="cap-mode" aria-label="What are you saving?">
         <button type="button" role="tab" id="mode-item" data-mode="item" aria-selected="true">Where I put something</button>
-        <button type="button" role="tab" id="mode-note" data-mode="note" aria-selected="false">Anything else</button>
+        <button type="button" role="tab" id="mode-note" data-mode="note" aria-selected="false">Note or info</button>
       </div>
 
       <div class="quick" data-for="item">
@@ -65,8 +65,8 @@
       </div>
       <div class="field" data-for="note">
         <label for="f-text">What do you want to remember?</label>
-        <textarea class="input big" id="f-text" maxlength="1000" placeholder="Car is on B2 near pillar 14. Saw a brass lamp I liked at Dilli Haat. Plumber's number is on the fridge."></textarea>
-        <p class="hint">A thought, something you saw, a number, an idea. Search finds it later.</p>
+        <textarea class="input big" id="f-text" maxlength="1000" placeholder="Car mein paise rakhe hain. Wi-Fi password is on the router. Saw a brass lamp I liked at Dilli Haat."></textarea>
+        <p class="hint">Any information worth keeping: a thought, a number, something you saw. Search finds it by any word in it.</p>
       </div>
 
       <div class="field">
@@ -180,9 +180,27 @@
         <li>“I took out the extension board” / “I put the extension board back”</li>
         <li>“Remind me to renew the car insurance”</li>
         <li>“Buy batteries and bulbs” / “Read my shopping list”</li>
+        <li>“I have to call mom tomorrow” / “Kya kya karna hai?”</li>
+        <li>“Call mom” / “Mummy ko phone lagao”</li>
+        <li>“Info: car mein paise rakhe hain”</li>
       </ul>
     </details>
   </div>
+</dialog>
+
+<dialog class="sheet" id="person-dlg" aria-labelledby="person-title">
+  <form id="person-form" novalidate style="display:contents">
+    <div class="sh-head"><h2 id="person-title">Add someone to call</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <div class="sh-body">
+      <p class="hint" id="person-hint"></p>
+      <button class="btn dark" type="button" id="person-pick" hidden>Pick from contacts</button>
+      <div class="field"><label for="p-name">Name</label><input class="input" id="p-name" maxlength="40" autocomplete="off" placeholder="Mummy"></div>
+      <div class="field"><label for="p-tel">Phone number</label><input class="input" id="p-tel" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="98100 12345"></div>
+      <p class="err" id="person-err" role="alert" hidden></p>
+      <div id="person-call"></div>
+    </div>
+    <div class="sh-foot"><button class="btn primary" type="submit" id="person-save">Save</button></div>
+  </form>
 </dialog>
 
 <dialog class="sheet" id="box-dlg" aria-labelledby="box-title">

@@ -40,6 +40,8 @@ export const SYN = [
   "umbrella chhata chhatri chata raincoat", "tool toolkit toolbox screwdriver hammer plier spanner wrench",
   "saree sari lehenga kurta dupatta", "kitchen rasoi", "puja pooja mandir temple", "living hall drawing lounge",
   "store storeroom storage godown", "spectacle glass specs chashma chasma", "wallet purse batua",
+  "paisa paise paison money cash rupee rupees naqad nakad", "mom mummy mumma mummyji maa mother mammi mamma", "dad papa pitaji father daddy",
+  "brother bhai bhaiya", "sister didi behen", "wife biwi patni", "husband pati", "son beta", "daughter beti",
   "cheque chequebook checkbook passbook", "insurance policy lic mediclaim", "christmas xmas",
   "holi pichkari pichkaari gulal", "battery cell", "car gaadi gadi", "parking parked park"
 ];
@@ -78,6 +80,7 @@ const PATHS = {
   cart: '<circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/><path d="M3 4h2.2l2.3 11h11l2-8H6.3"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/>',
+  phone: '<path d="M6.5 3.5h3l1.6 4.4-2.1 1.3a10.5 10.5 0 0 0 5.8 5.8l1.3-2.1 4.4 1.6v3a2 2 0 0 1-2.1 2A16.5 16.5 0 0 1 4.5 5.6a2 2 0 0 1 2-2.1z"/>',
   qr: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>'
 };
 export const icon = (c, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[c] || PATHS.other}</svg>`;

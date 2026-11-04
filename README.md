@@ -3,7 +3,7 @@
 A phone app for remembering where you put things, and anything else worth remembering.
 
 - **Put something away**: type or say “Diwali lights in the blue trunk on the bedroom loft”, add a photo, and it fills in the item, room and spot.
-- **Note anything**: a thought, a number, something you saw, where you parked. Each note keeps a photo, the date and time and, if you want, where you were.
+- **Note anything** (notes and general information): a thought, a number, something you saw, where you parked, “car mein paise rakhe hain”. Search finds it by any word in it. Each note keeps a photo, the date and time and, if you want, where you were.
 - **Voice commands**: tap the big mic and speak. English (India) understands Hinglish too.
 - **Search** forgives typos and knows Hindi words: “lihgts”, “almari”, “chabi”, “passport kahan hai”.
 - **Coming up**: things tagged Diwali, Holi, Christmas, winter, summer or monsoon show on the home screen before you need them.
@@ -33,9 +33,15 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “Bazaar se dudh laane hai, kele laane hain” / “Mujhe dudh aur bread chahiye” / “Aata paneer daliya gobhi” | Each thing becomes its own line on the list, even without commas |
 | “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
 | “Read my shopping list” / “What do I need to buy?” / “Kya kya lana hai?” | Reads the shopping list aloud |
+| “Call mom” / “Mummy ko phone lagao” | Shows a button that opens the dialer (link the name to a contact the first time) |
+| “Car main paise rakhe hain” / “Info: Wi-Fi password is on the router” | Saves it so “paisa kahan hai?” finds it |
 | “I have to call mom tomorrow” / “Add pay the bill to my to-do list” / “Mummy ko call karna hai” | Adds to the to-do list, with the day if you said one |
 | “What do I have to do?” / “Kya kya karna hai?” | Reads the to-do list aloud |
 | “Electricity bill done” / “Plumber ko call kar diya” | Ticks it off the to-do list |
+
+Answers can be in English or Hinglish (Settings › Voice › Answers in): “Passport bedroom mein hai”, “2 cheezein leni hain: dudh aur kele”.
+
+**Calling**: say “call mom”, or tap the phone button on a to-do like “Call mom”. The first time, pick the person from your contacts (Chrome on Android) or type the number; it's saved on the phone and remembers the word you used. A web app can't place a call by itself, so the dialer opens with the number and you tap call. Manage numbers in Settings › People to call.
 
 Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings. If something you meant to buy is about to be saved as a note, tap **Add to To buy instead**. The mic inside the To buy list adds everything you say straight to the list. Answers are read a little slower than normal speech; change the speed in Settings › Voice.
 

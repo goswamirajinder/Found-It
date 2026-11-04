@@ -1,5 +1,6 @@
 // What the main column shows: home, search results, one room, or all notes.
-import {S, items, notes, roomsList} from "./state.js";
+import {S, items, notes, roomsList, callTarget} from "./state.js";
+import {callLink} from "./people.js";
 import {esc, icon, shortDate, fmtDate, ymd, today, daysBetween, OCCASIONS, nextDate, whenText, STARTERS} from "./data.js";
 import {searchItems} from "./search.js";
 import {photoUrl} from "./store.js";
@@ -31,6 +32,10 @@ export function row(it, o = {}) {
   if (it.kind === "box") {
     return `<button class="item" type="button" data-box="${esc(it.code)}">${thumb("qr")}<span class="body"><span class="name">${esc(it.name)}</span>${tapeHtml(it)}
       <span class="meta"><span class="pill ex">Box ${esc(it.code)}</span><span>${plural(inBox(it.code).length, "thing")} inside</span></span></span></button>`;
+  }
+  if (it.kind === "person") {
+    return `<div class="item person"><span class="thumb">${icon("phone")}</span><span class="body"><span class="name">${esc(it.name)}</span>
+      <span class="meta"><span>${esc(it.tel)}</span>${it.aliases.length ? `<span>also “${esc(it.aliases.join("”, “"))}”</span>` : ""}</span></span>${callLink(it, "Call")}</div>`;
   }
   if (it.kind === "buy" || it.kind === "todo") {
     const L = LISTS[it.kind];
@@ -69,7 +74,7 @@ function listSection(kind) {
     <button class="tick" type="button" data-tick="${esc(i.id)}" aria-pressed="${i.bought}" aria-label="${i.bought ? L.tickOff : L.tickOn}: ${esc(i.name)}">${i.bought ? icon("check") : ""}</button>
     <span class="buy-name">${esc(i.name)}</span>
     ${i.bought ? `<span class="buy-acts">${kind === "buy" ? `<button class="btn small" type="button" data-put="${esc(i.id)}">Put away</button>` : ""}<button class="btn small ghost danger" type="button" data-del="${esc(i.id)}">Delete</button></span>`
-      : `<span class="hint">${esc(when(i))}</span>`}</div>`;
+      : `<span class="buy-acts"><span class="hint">${esc(when(i))}</span>${kind === "todo" && callTarget(i.name) ? `<button class="btn small call-btn" type="button" data-call="${esc(i.id)}" aria-label="Call: ${esc(i.name)}">${icon("phone")}</button>` : ""}</span>`}</div>`;
   const n = all.length, confirming = S.confirmClear && S.confirmClear[kind];
   return sec(`${L.title}${open.length ? ` (${open.length})` : ""}`, `<div class="buy">
     <form class="buy-add list-add" ${k} novalidate><label class="sr" for="${kind}-input">${L.ph}</label>
@@ -133,7 +138,7 @@ export function viewHome() {
   const exp = S.items.filter(i => i.expiry && daysBetween(today(), i.expiry) <= 60).sort((a, b) => a.expiry.localeCompare(b.expiry));
   if (exp.length) out.push(sec("Expiring soon", list(exp)));
   const ns = notes().sort(byNewest);
-  if (ns.length) out.push(sec("Notes and sightings", list(ns.slice(0, 4)), ns.length > 4 ? `<button class="link" type="button" data-act="notes">See all ${ns.length}</button>` : ""));
+  if (ns.length) out.push(sec("Notes and information", list(ns.slice(0, 4)), ns.length > 4 ? `<button class="link" type="button" data-act="notes">See all ${ns.length}</button>` : ""));
   const recent = items().sort(byNewest).slice(0, 6);
   if (recent.length) out.push(sec("Recently put away", list(recent)));
   const bx = boxes();
@@ -163,6 +168,6 @@ export function viewRoom(room) {
 }
 export function viewNotes() {
   const ns = notes().sort(byNewest);
-  return `<div><button class="back btn ghost small" type="button" data-act="home">‹ Home</button><h2 class="room-h">Notes and sightings</h2>
+  return `<div><button class="back btn ghost small" type="button" data-act="home">‹ Home</button><h2 class="room-h">Notes and information</h2>
     <p class="hint">${plural(ns.length, "note")}</p></div>${list(ns)}`;
 }

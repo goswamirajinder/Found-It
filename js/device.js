@@ -46,6 +46,16 @@ export function speak(text, lang = "en-IN", rate = 1) {
 }
 export const stopSpeaking = () => { if (canSpeak) speechSynthesis.cancel(); };
 
+// The phone's own contact picker (Chrome on Android). The app only ever sees the one contact the person picks.
+export const canPickContacts = typeof navigator !== "undefined" && "contacts" in navigator && typeof window !== "undefined" && "ContactsManager" in window;
+export async function pickContact() {
+  const [c] = await navigator.contacts.select(["name", "tel"], {multiple: false});
+  if (!c) return null;
+  return {name: (c.name && c.name[0]) || "", tel: ((c.tel && c.tel[0]) || "").replace(/[^\d+]/g, "")};
+}
+// Opens the phone's dialer with the number filled in; the person taps call there.
+export const telHref = tel => `tel:${String(tel || "").replace(/[^\d+]/g, "")}`;
+
 export function locate() {
   return new Promise((res, rej) => {
     if (!canLocate) return rej({code: 0});

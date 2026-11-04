@@ -212,6 +212,13 @@ details.more summary,details.examples summary{cursor:pointer;font:700 15px var(-
 .buy-acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .buy-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 
+/* calling */
+.call{text-decoration:none}
+.call .ic,.call-btn .ic{width:18px;height:18px}
+.item.person{grid-template-columns:56px minmax(0,1fr) auto;align-items:center}
+.call-btn{min-height:32px;padding:0 10px}
+.buy-acts .hint{align-self:center}
+
 /* boxes */
 .boxbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:14px;background:var(--accent-soft)}
 .label{display:grid;justify-items:center;gap:8px;padding:16px;border-radius:16px;background:#fff;color:#111;border:1px solid var(--line)}

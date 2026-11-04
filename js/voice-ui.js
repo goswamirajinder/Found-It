@@ -1,5 +1,7 @@
 // The voice sheet: listen, work out what was meant, then answer, or save after a short countdown.
-import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem, addToList, joinNames} from "./state.js";
+import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem, addToList, joinNames, findPerson} from "./state.js";
+import {phrases} from "./phrases.js";
+import {callLink, openPerson} from "./people.js";
 import {esc, cap, newId, ago, fmtDate, daysBetween, today} from "./data.js";
 import {parseCommand, parseWhen, buyItems, splitItems, todoItems} from "./parse.js";
 import {searchItems, rank, guessCategory, guessOccasion} from "./search.js";
@@ -10,7 +12,9 @@ import {openCapture, openItem, finishMove} from "./sheets.js";
 let rec = null, P = null;
 const result = html => { $("#voice-result").innerHTML = html; };
 const state = text => { $("#voice-state").textContent = text; };
-const talk = text => speak(text, S.settings.voiceLang, S.settings.speechRate);
+// The answers' wording (English or Hinglish) and voice; Hinglish is written in Roman letters, so an Indian English voice reads it.
+const T = () => phrases(S.settings.answerLang);
+const talk = text => speak(text, S.settings.answerLang === "hinglish" ? "en-IN" : S.settings.voiceLang, S.settings.speechRate);
 const say = text => { if (S.settings.speakAnswers) talk(text); };
 const whereText = it => `${it.room || "somewhere"}${it.spot ? ", " + it.spot : ""}`;
 
@@ -58,8 +62,9 @@ export function handle(text) {
   if (cmd.intent === "todo") return confirmTodo(cmd.items);
   if (cmd.intent === "todo-list") return readList("todo", true);
   if (cmd.intent === "done") return confirmTick("todo", cmd.query);
+  if (cmd.intent === "call") return confirmCall(cmd.who);
   if (cmd.intent === "help") {
-    const a = "I can read out your shopping list or to-do list, or find where something is. Try “read my to-do list” or “where is my passport”.";
+    const a = T().help;
     result(`<p class="answer">${esc(a)}</p>`);
     say(a);
     return;
@@ -69,13 +74,15 @@ export function handle(text) {
 
 function showFind(q) {
   const res = searchItems(q, S.items).slice(0, 5);
-  if (!res.length) { const a = `I couldn't find anything for “${q}”.`; result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
+  if (!res.length) { const a = T().notFound(q); result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
   const top = res[0];
-  const a = top.kind === "note" ? `Your note from ${dayOf(top.keptAt || top.createdAt)}: ${top.name}`
-    : top.kind === "buy" ? (top.bought ? `You bought ${top.name} on ${dayOf(top.boughtAt)}.` : `${top.name} is on your shopping list.`)
-    : top.kind === "todo" ? (top.bought ? `You ticked off “${top.name}” on ${dayOf(top.boughtAt)}.` : `“${top.name}” is on your to-do list${top.remindOn ? `, ${dueWords(top.remindOn)}` : ""}.`)
-    : top.kind === "box" ? `Box ${top.code}, ${top.name}, is in ${whereText(top)}.`
-    : `${top.name} is in ${whereText(top)}, kept on ${dayOf(top.keptAt)}.${top.status === "out" ? ` It was taken out ${ago(top.outAt)}.` : ""}`;
+  const t = T();
+  const a = top.kind === "note" ? t.noteFrom(dayOf(top.keptAt || top.createdAt), top.name)
+    : top.kind === "buy" ? (top.bought ? t.boughtOn(top.name, dayOf(top.boughtAt)) : t.onBuy(top.name))
+    : top.kind === "todo" ? (top.bought ? t.doneOn(top.name, dayOf(top.boughtAt)) : t.onTodo(top.name, top.remindOn ? dueWords(top.remindOn) : ""))
+    : top.kind === "box" ? t.boxIn(top.code, top.name, whereText(top))
+    : top.kind === "person" ? t.personIs(top.name, top.tel)
+    : t.itemIn(top.name, whereText(top), dayOf(top.keptAt), top.status === "out" ? ago(top.outAt) : "");
   result(`<p class="answer">${esc(a)}</p><div class="list">${res.map(i => row(i)).join("")}</div>`);
   say(a);
 }
@@ -97,7 +104,7 @@ function confirmKeep(p) {
       const now = new Date().toISOString();
       await saveEntry({id: newId(), kind: "item", name: p.name, room: p.room, spot: p.spot, category: guessCategory(p.name), occasion: guessOccasion(p.name),
         status: "kept", history: [], photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
-      return `Saved. ${p.name}: ${whereText(p)}.`;
+      return T().saved(p.name, whereText(p));
     },
     edit: () => openCapture("item", {name: p.name, room: p.room, spot: p.spot})
   });
@@ -112,20 +119,20 @@ function confirmNote(cmd) {
     run: async () => {
       const now = new Date().toISOString();
       await saveEntry({id: newId(), kind: "note", name: text, remindOn, photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
-      return remindOn ? `Noted. I'll remind you on ${fmtDate(remindOn)}.` : "Noted.";
+      return remindOn ? T().notedRemind(fmtDate(remindOn)) : T().noted;
     },
     edit: () => openCapture("note", {text, remindOn}),
     alts: [{label: "Add to To buy instead", run: () => addToList("buy", thingsToBuy(text))}, {label: "Add to To do instead", run: () => addToList("todo", thingsToDo(text))}]
   });
 }
 
-const dueWords = d => { const n = daysBetween(today(), d); return n === 0 ? "today" : n === 1 ? "tomorrow" : n === -1 ? "yesterday" : `on ${fmtDate(d)}`; };
+const dueWords = d => T().due(daysBetween(today(), d)) || T().dueOn(fmtDate(d));
 // "You have 3 things to buy: atta, bulbs and milk." Used by voice and by each list's Read aloud button.
 // `spoken` numbers each one and ends it with a full stop, so the voice pauses between them.
 export function listText(kind) {
   const {open} = listItems(kind), L = LISTS[kind];
-  if (!open.length) return {open, text: `Your ${L.listName} is empty.`, spoken: `Your ${L.listName} is empty.`};
-  const count = `You have ${open.length} thing${open.length === 1 ? "" : "s"} ${kind === "todo" ? "to do" : "to buy"}`;
+  if (!open.length) return {open, text: T().listEmpty(kind), spoken: T().listEmpty(kind)};
+  const count = T().listCount(kind, open.length);
   const one = i => (i.remindOn ? `${i.name}, ${dueWords(i.remindOn)}` : i.name);
   return {open, text: `${count}: ${joinNames(open.map(one))}.`, spoken: `${count}. ${open.map((i, k) => `${k + 1}. ${one(i)}.`).join(" ")}`};
 }
@@ -135,7 +142,7 @@ function readList(kind, speakIt) {
   const {open, text, spoken} = listText(kind), L = LISTS[kind];
   result(`<p class="answer">${esc(text)}</p>${open.length ? `<div class="buy-list">${open.map(i => `<div class="buy-row">
     <button class="tick" type="button" data-vtick="${esc(i.id)}" data-list="${kind}" aria-pressed="false" aria-label="${L.tickOn}: ${esc(i.name)}"></button>
-    <span class="buy-name">${esc(i.name)}</span><span></span></div>`).join("")}</div><p class="hint">Tap a circle when it's ${kind === "todo" ? "done" : "bought"}.</p>` : ""}`);
+    <span class="buy-name">${esc(i.name)}</span><span></span></div>`).join("")}</div><p class="hint">${esc(T().tapCircle(kind))}</p>` : ""}`);
   if (speakIt) talk(spoken);
 }
 const cleanEnd = t => String(t || "").replace(/[\s.!?।]+$/, "");
@@ -155,7 +162,7 @@ export function listenForList(kind, btn) {
     onDone: async t => {
       btn.classList.remove("on");
       const things = kind === "todo" ? thingsToDo(t) : thingsToBuy(t);
-      if (!things.length) { toast("I didn't catch that. Tap the mic and try again."); return; }
+      if (!things.length) { toast(T().didntCatch); return; }
       const msg = await addToList(kind, things);
       toast(msg);
       talk(msg);
@@ -186,12 +193,19 @@ function confirmTick(kind, q) {
     html: `Tick off <b>${esc(it.name)}</b> as ${kind === "todo" ? "done" : "bought"}?`, label: kind === "todo" ? "Yes, done" : "Yes, bought",
     run: async () => {
       await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()});
-      return kind === "todo" ? `Ticked off ${it.name}.` : `Ticked off ${it.name}. When you put it away, tap Put away next to it.`;
+      return kind === "todo" ? T().tickedTodo(it.name) : T().tickedBuy(it.name);
     },
     edit: () => openItem(it.id)
   });
 }
 const confirmBought = q => confirmTick("buy", q);
+// "Call mom": a button that opens the dialer (a web app can't ring by itself); a name it doesn't know gets linked once.
+function confirmCall(who) {
+  const p = findPerson(who), t = T();
+  const a = p ? t.callTap(p.name) : t.callUnknown(cap(who));
+  result(`<p class="answer">${esc(a)}</p>${p ? callLink(p) : `<div class="row"><button class="btn dark" type="button" data-v="link" data-who="${esc(who)}">Link ${esc(who)} to a contact</button></div>`}`);
+  say(a);
+}
 function pickList(q, msg) {
   const res = searchItems(q, S.items.filter(i => i.kind === "item")).slice(0, 5);
   result(`<p class="answer">${esc(res.length ? msg : `I couldn't find “${q}”.`)}</p><div class="list">${res.map(i => row(i)).join("")}</div>`);
@@ -202,7 +216,7 @@ function confirmOut(q) {
   if (!it) return pickList(q, "Which one? Tap it, then choose Taking it out.");
   pending({
     html: `Mark <b>${esc(it.name)}</b> as taken out?`, label: "Yes, taken out",
-    run: async () => { await patchEntry(it.id, {status: "out", outAt: new Date().toISOString()}); return `Okay. Tell me when the ${it.name} goes back.`; },
+    run: async () => { await patchEntry(it.id, {status: "out", outAt: new Date().toISOString()}); return T().outOk(it.name); },
     edit: () => openItem(it.id)
   });
 }
@@ -214,7 +228,7 @@ function confirmBack(cmd) {
     html: `Put <b>${esc(it.name)}</b> back: ${tapeHtml(to)}`, label: "Save",
     run: async () => {
       const changed = await finishMove(it, to.room || "", to.spot || "");
-      return changed ? `Updated. ${it.name}: ${whereText(to)}.` : `Great, the ${it.name} is back in its place.`;
+      return changed ? T().backNew(it.name, whereText(to)) : T().backSame(it.name);
     },
     edit: () => openItem(it.id)
   });
@@ -247,7 +261,8 @@ export function wireVoice() {
     if (b.dataset.vtick) { await patchEntry(b.dataset.vtick, {bought: true, boughtAt: new Date().toISOString()}); readList(b.dataset.list, false); return; }
     const v = b.dataset.v;
     if (v === "save") commit();
-    else if (v === "cancel") { clearPending(); result(`<p class="answer">Cancelled. Nothing was saved.</p>`); }
+    else if (v === "cancel") { clearPending(); result(`<p class="answer">${esc(T().cancelled)}</p>`); }
+    else if (v === "link") { $("#voice-dlg").close(); openPerson(b.dataset.who); }
     else if (v === "alt" && P && P.alts[b.dataset.i]) { const a = P.alts[b.dataset.i]; clearPending(); const msg = await a.run(); result(`<p class="answer">${esc(msg)}</p>`); say(msg); }
     else if (v === "edit" && P) { const ed = P.edit; clearPending(); $("#voice-dlg").close(); ed(); }
   });

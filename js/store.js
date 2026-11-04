@@ -60,7 +60,8 @@ export function cleanEntry(d) {
   const pl = d.place && typeof d.place === "object" && num(d.place.lat) !== null && num(d.place.lng) !== null
     ? {lat: d.place.lat, lng: d.place.lng, acc: num(d.place.acc) || 0, label: str(d.place.label, 60)} : null;
   return {
-    id: String(d.id).slice(0, 40), kind: ["note", "buy", "todo", "box"].includes(d.kind) ? d.kind : "item",
+    id: String(d.id).slice(0, 40), kind: ["note", "buy", "todo", "box", "person"].includes(d.kind) ? d.kind : "item",
+    tel: str(d.tel, 24).replace(/[^\d+]/g, "") || null, aliases: Array.isArray(d.aliases) ? d.aliases.filter(a => typeof a === "string").slice(0, 6).map(a => a.slice(0, 40)) : [],
     bought: d.bought === true, boughtAt: str(d.boughtAt, 40) || null, boxId: str(d.boxId, 12) || null, code: str(d.code, 12) || null,
     name: str(d.name, 1000) || "Untitled", room: str(d.room, 60), spot: str(d.spot, 140),
     category: CATS.some(c => c[0] === d.category) ? d.category : "other",

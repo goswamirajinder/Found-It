@@ -43,6 +43,8 @@ function findRoom(where, knownRooms) {
   return best;
 }
 
+const HI_PLACE_FIRST = /^(.+?)\s+(mein|me|main|par|pe|ke andar|ke upar|ke neeche|ke niche|ke peeche|ke paas)\s+(.+?)\s+(?:rakh[aie]|rakkh[aie]|pad[aie]|hai|hain)(?:\s+(?:hua|hue|hui|hai|hain|tha|the|thi))?$/i;
+
 // "Diwali lights in the blue trunk on the bedroom loft" -> {name, room, spot}. `where` is "" when no place was said.
 export function parseLine(line, knownRooms = []) {
   let s = String(line || "").replace(/\s+/g, " ").trim().replace(/[.!]+$/, "");
@@ -54,9 +56,12 @@ export function parseLine(line, knownRooms = []) {
   const h = s.replace(HI_VERB, "");
   const hm = h.match(/^(.+?)\s+(mein|me|main|par|pe|ke andar|ke upar|ke neeche|ke niche|ke peeche|ke paas)$/i);
   const hs = hm && !ex && !m ? splitHinglish(hm[1]) : null;
+  // Hinglish that names the place first: "car main paise rakhe hain", "almari mein passport rakha hai".
+  const pf = ex || m || hs ? null : s.match(HI_PLACE_FIRST);
   if (ex) { name = ex[1]; where = ex[2]; }
   else if (m) { name = m[1]; prep = m[2].toLowerCase(); where = m[3]; }
   else if (hs) { name = hs.name; where = hs.where; prep = HI_POST[hm[2].toLowerCase()]; }
+  else if (pf) { name = pf[3]; where = pf[1]; prep = HI_POST[pf[2].toLowerCase()]; }
   else { const c = s.match(/^(.+?),\s*(.+)$/); if (c) { name = c[1]; where = c[2]; } }
   name = name.replace(/\s+(?:is|are|was|were|parked|kept|placed|stored|lying)$/i, "").replace(/\s+ko$/i, "").trim();
   let room = "", spot = where;
@@ -239,7 +244,14 @@ export function parseCommand(raw, knownRooms = []) {
   // Phones often add a full stop or question mark; remember the question, then match on the bare words.
   const asked = /\?\s*$/.test(said), text = said.replace(/[\s.!?।]+$/, "");
   if (!text) return {intent: "none", text};
-  let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
+  let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|info|information|general info|jaankari|jankari|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
+  // "Call mom", "mummy ko phone lagao": ring someone now. With a day it's a job for later.
+  const call = text.match(/^(?:call|phone|ring|dial|give a call to|make a call to)\s+(?:to\s+)?(.+?)(?:\s+(?:now|abhi))?$/i) || text.match(/^(.+?)\s+ko\s+(?:call|phone|fone|ring)\s+(?:karo|kar do|lagao|laga do|milao|mila do)$/i);
+  if (call && !m) {
+    const when = parseWhen(text, today(), true);
+    if (when.date) return {intent: "todo", items: [{name: cap(when.rest), remindOn: when.date}], text};
+    return {intent: "call", who: call[1].replace(/^(?:the|my)\s+/i, "").trim(), text};
+  }
   if (m && m[1]) {
     // "Note: buy milk" and "remind me to buy batteries" belong on the shopping list, unless a date was said.
     const items = buyItems(m[1]) || (/^remind me to buy\b/i.test(text) ? splitItems(m[1].replace(/^buy\s+/i, "")) : null);
