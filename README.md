@@ -44,6 +44,8 @@ Answers can be in English or Hinglish (Settings › Voice › Answers in): “Pa
 
 **Calling**: say “call mom”, or tap the phone button on a to-do like “Call mom”. The first time, pick the person from your contacts (Chrome on Android) or type the number; it's saved on the phone and remembers the word you used. The dialer opens by itself with the number filled in; press its green call button. (Android lets an app other than the phone's own place a call only with phone permission, which a web app can't have, and opens the dialer only within a few seconds of a tap. If you paused for long before speaking, tap **Call** instead.) Manage numbers in Settings › People to call.
 
+**All your contacts at once**: Chrome's contact picker lets you tick several people in one go but has no “select all” (on purpose, for privacy). To bring in everyone, export your contacts to a file from the phone's Contacts app (Google Contacts: Fix & manage › Export to file; Samsung Contacts: Manage contacts › Import or export contacts › Export), then in Found It tap Settings › People to call › **Import all contacts** and choose the .vcf file. Numbers you already saved keep their names, and the contact's name becomes a nickname. With many contacts, “call Rahul” lists every Rahul with its own Call button instead of guessing, and search shows contacts in their own group after your saved things. **Remove all** takes them out again; the phone's own contacts are never changed.
+
 Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings. If something you meant to buy is about to be saved in General info, tap **Add to To buy instead**. The mic inside the To buy list adds everything you say straight to the list. Answers are read a little slower than normal speech; change the speed in Settings › Voice.
 
 ## Put it on your phone
@@ -89,9 +91,11 @@ npm run label -- B001   # makes labels/box-B001.svg (to print) and .png for one 
 ```
 
 - `js/parse.js`: sentence → item, room, spot; spoken command → intent; spoken dates
-- `js/search.js`: typo- and synonym-tolerant search
+- `js/search.js`: typo- and synonym-tolerant search, with one key per Hindi word however it's spelt (Roman or Devanagari)
 - `js/store.js`: IndexedDB storage, backup and restore
-- `js/device.js`: speech recognition, speech output and location
+- `js/device.js`: speech recognition, speech output, location, contact picker and dialer
+- `js/vcard.js`: reads a contacts file (.vcf) from Android, Google Contacts or iPhone; `js/people.js`: people to call
+- `js/phrases.js`: every spoken answer, in English and Hinglish
 - `js/reminders.js`: works out which notifications are due; `sw.js` shows them and keeps the app working offline
 - `js/qr.js`: QR code generator for box labels (checked against an independent decoder); `js/boxes.js`: the box sheet
 - `js/state.js`, `js/views.js`, `js/sheets.js`, `js/voice-ui.js`, `js/app.js`: the screens

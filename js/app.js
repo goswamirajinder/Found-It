@@ -1,20 +1,23 @@
 // Starts the app: loads saved data, draws the home screen, and wires the header, dock and settings.
-import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addToList, people} from "./state.js";
+import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, removeMany, addToList, people, savePeople, searchable} from "./state.js";
 import {wireBoxes, openBox, newCode} from "./boxes.js";
 import {wirePeople, openPerson, callFromText, callLink} from "./people.js";
-import {thingsToBuy, thingsToDo} from "./voice-ui.js";
+import {thingsToBuy, thingsToDo, chooseCall} from "./voice-ui.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
 import {wireVoice, openVoice, readListAloud, listenForList} from "./voice-ui.js";
 import {exportAll, importAll, wipeAll, getMeta, setMeta} from "./store.js";
 import {esc, newId, today, addDays} from "./data.js";
-import {canListen, canLocate, locate, locError, speak} from "./device.js";
+import {searchItems} from "./search.js";
+import {parseVcards} from "./vcard.js";
+import {canListen, canLocate, locate, locError, speak, canPickContacts, pickContacts} from "./device.js";
 const RATES = [[0.7, "Slow"], [0.85, "A little slow"], [1, "Normal"]];
 
 function render() {
   const q = $("#q").value.trim();
   $("#q-clear").hidden = !q;
-  $("#count").textContent = S.items.length ? `${S.items.length} saved` : "Where did I keep it?";
+  const saved = S.items.filter(i => i.kind !== "person").length;
+  $("#count").textContent = saved ? `${saved} saved` : "Where did I keep it?";
   $("#main").innerHTML = q ? viewSearch(q) : S.view.kind === "room" ? viewRoom(S.view.room) : S.view.kind === "notes" ? viewNotes() : viewHome();
   refreshOpenItem();
 }
@@ -30,8 +33,24 @@ function remStatus() {
   if (S.settings.reminders && Notification.permission === "granted") return S.periodic ? "On. Your phone checks about twice a day, even when the app is closed." : "On. Reminders are checked when the app opens. Installing the app lets Android check while it's closed.";
   return "Get a notification before festivals, a week before things expire, and when something taken out hasn't gone back.";
 }
+// People to call in Settings: the first few by name, or whoever matches what's typed in the find box.
+function peopleRows(q) {
+  const all = people(), byId = new Map(all.map(p => [p.id, p]));
+  const shown = q.trim() ? searchItems(q, all.map(searchable)).slice(0, 20).map(x => byId.get(x.id))
+    : [...all].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+  return shown.map(p => `<div class="place-row"><span>${esc(p.name)} <span class="hint">${esc(p.tel)}</span></span><span class="row">${callLink(p, "Call")}<button class="btn small" type="button" data-person-edit="${esc(p.id)}">Edit</button><button class="btn small ghost danger" type="button" data-person-del="${esc(p.id)}">Remove</button></span></div>`).join("")
+    + (q.trim() && !shown.length ? `<p class="hint">Nobody called “${esc(q)}”.</p>` : !q.trim() && all.length > shown.length ? `<p class="hint">Showing ${shown.length} of ${all.length}. Type a name above to find anyone.</p>` : "");
+}
+// Redraws Settings but keeps what was typed in the people find box.
+function redrawSettings() {
+  const q = ($("#s-people-q") || {}).value || "";
+  drawSettings();
+  if (q && $("#s-people-q")) { $("#s-people-q").value = q; $("#s-people").innerHTML = peopleRows(q); }
+}
+const peopleSaved = ({added, nicknamed}) => (added ? `Added ${added} ${added === 1 ? "person" : "people"} to call.` : "No new numbers: everyone was already saved.")
+  + (nicknamed ? ` ${nicknamed} already saved got their contact name as a nickname too.` : "");
 function drawSettings() {
-  const s = S.settings;
+  const s = S.settings, n = people().length;
   $("#set-body").innerHTML = `
   <section class="set-group"><h3>Voice</h3>
     ${canListen ? "" : `<p class="hint">This browser can't listen, so type your commands in the voice sheet, or use the mic on your keyboard. Chrome on Android listens.</p>`}
@@ -42,10 +61,14 @@ function drawSettings() {
     <div class="field"><label for="s-rate">Speaking speed</label><div class="vtype"><select class="input" id="s-rate">${RATES.map(([v, l]) => `<option value="${v}"${s.speechRate === v ? " selected" : ""}>${l}</option>`).join("")}</select><button class="btn" type="button" id="s-rate-try">Try it</button></div></div>
     <label class="toggle"><input type="checkbox" id="s-auto"${s.autoSave ? " checked" : ""}><span>Save spoken entries after a 4-second countdown</span></label>
   </section>
-  <section class="set-group"><h3>People to call</h3>
+  <section class="set-group"><h3>People to call${n ? ` (${n})` : ""}</h3>
     <p class="hint">Say “call mom”, or tap the phone button on a to-do like “Call mom”, and the dialer opens with the number. Numbers stay on this phone.</p>
-    ${people().map(p => `<div class="place-row"><span>${esc(p.name)} <span class="hint">${esc(p.tel)}</span></span><span class="row">${callLink(p, "Call")}<button class="btn small" type="button" data-person-edit="${esc(p.id)}">Edit</button><button class="btn small ghost danger" type="button" data-person-del="${esc(p.id)}">Remove</button></span></div>`).join("")}
-    <button class="btn" type="button" id="s-person-add">Add someone to call</button>
+    <div class="row">${canPickContacts ? `<button class="btn dark" type="button" id="s-person-pick">Pick from contacts</button>` : ""}<label class="btn" for="contacts-file">Import all contacts</label><button class="btn" type="button" id="s-person-add">Type a number</button></div>
+    <p class="hint">${canPickContacts ? "Pick from contacts lets you tick several people at once (the phone doesn't offer “select all”). " : ""}For everyone in one go: in your phone's Contacts app, export your contacts to a file (Google Contacts: Fix &amp; manage › Export to file), then tap Import all contacts and choose that file.</p>
+    <p class="hint" id="s-people-msg" aria-live="polite"></p>
+    ${n > 8 ? `<input class="input" id="s-people-q" type="search" autocomplete="off" placeholder="Find someone among ${n}">` : ""}
+    <div id="s-people">${peopleRows("")}</div>
+    ${n > 1 ? `<div id="s-people-clear-box"><button class="btn small ghost danger" type="button" id="s-people-clear">Remove all ${n} people</button></div>` : ""}
   </section>
   <section class="set-group"><h3>Location</h3>
     ${canLocate ? `<label class="toggle"><input type="checkbox" id="s-loc"${s.autoLocation ? " checked" : ""}><span>Add where I am to new entries</span></label>
@@ -114,8 +137,25 @@ async function onSettingsClick(e) {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.personEdit) { openPerson("", S.items.find(i => i.id === b.dataset.personEdit)); return; }
-  if (b.dataset.personDel) { const p = S.items.find(i => i.id === b.dataset.personDel); if (p) await removeEntry(p); drawSettings(); return; }
+  if (b.dataset.personDel) { const p = S.items.find(i => i.id === b.dataset.personDel); if (p) await removeEntry(p); redrawSettings(); return; }
   if (b.id === "s-person-add") { openPerson(""); return; }
+  if (b.id === "s-person-pick") {
+    let list;
+    try { list = await pickContacts(true); }
+    catch (err) { $("#s-people-msg").textContent = "Couldn't open your contacts. Use Import all contacts instead."; return; }
+    if (!list.length) return;
+    const msg = peopleSaved(await savePeople(list));
+    drawSettings();
+    $("#s-people-msg").textContent = msg;
+    return;
+  }
+  if (b.id === "s-people-clear") {
+    $("#s-people-clear-box").innerHTML = `<div class="confirm"><p style="margin:0">Remove all ${people().length} people from Found It? Your phone's own contacts stay as they are.</p>
+      <div class="row"><button class="btn dark" type="button" id="s-people-clear-yes">Remove them</button><button class="btn" type="button" id="s-people-clear-no">Keep them</button></div></div>`;
+    return;
+  }
+  if (b.id === "s-people-clear-no") { redrawSettings(); return; }
+  if (b.id === "s-people-clear-yes") { await removeMany(people()); drawSettings(); toast("Removed everyone from People to call"); return; }
   if (b.dataset.delPlace) { await removePlace(b.dataset.delPlace); drawSettings(); return; }
   if (b.id === "s-place-add") {
     const label = $("#s-place").value.trim(), m = $("#s-place-msg");
@@ -175,7 +215,23 @@ function wire() {
   wireVoice();
   wireBoxes();
   wirePeople();
-  $("#person-dlg").addEventListener("close", () => { if ($("#set-dlg").open) drawSettings(); });
+  $("#person-dlg").addEventListener("close", () => { if ($("#set-dlg").open) redrawSettings(); });
+  S.chooseCall = chooseCall;
+  $("#set-body").addEventListener("input", e => { if (e.target.id === "s-people-q") $("#s-people").innerHTML = peopleRows(e.target.value); });
+  // A contacts file (.vcf) exported from the phone's Contacts app: everyone in it, in one go.
+  $("#contacts-file").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const say = t => { const m = $("#s-people-msg"); if (m) m.textContent = t; toast(t.split(". ")[0]); };
+    try {
+      const list = parseVcards(await f.text());
+      if (!list.length) return say("That file has no contacts with phone numbers. Export a .vcf file from your Contacts app and choose it here.");
+      const msg = peopleSaved(await savePeople(list));
+      if ($("#set-dlg").open) drawSettings();
+      say(msg);
+    } catch (err) { say("Couldn't read that file. Export a .vcf file from your Contacts app and choose it here."); }
+  });
   $("#q").addEventListener("input", () => { if (!$("#q").value.trim() && S.view.kind !== "home") S.view = {kind: "home"}; render(); });
   $("#q-clear").addEventListener("click", () => { $("#q").value = ""; render(); $("#q").focus(); });
   $("#search-form").addEventListener("submit", e => { e.preventDefault(); $("#q").blur(); });

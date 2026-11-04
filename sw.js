@@ -1,8 +1,8 @@
 // Found It service worker: keeps the app working offline and shows due reminders as phone notifications.
 // Bump CACHE when you release a new version so phones pick up the new files.
-const CACHE = "found-it-v10";
+const CACHE = "found-it-v11";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "js/app.js", "js/data.js", "js/search.js", "js/parse.js",
-  "js/store.js", "js/state.js", "js/device.js", "js/reminders.js", "js/views.js", "js/sheets.js", "js/voice-ui.js", "js/qr.js", "js/boxes.js", "js/phrases.js", "js/people.js",
+  "js/store.js", "js/state.js", "js/device.js", "js/reminders.js", "js/views.js", "js/sheets.js", "js/voice-ui.js", "js/qr.js", "js/boxes.js", "js/phrases.js", "js/people.js", "js/vcard.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 // "reload" skips the browser's HTTP cache (GitHub Pages keeps files 10 minutes), so a new version never caches old files.

@@ -46,13 +46,14 @@ export function speak(text, lang = "en-IN", rate = 1) {
 }
 export const stopSpeaking = () => { if (canSpeak) speechSynthesis.cancel(); };
 
-// The phone's own contact picker (Chrome on Android). The app only ever sees the one contact the person picks.
+// The phone's own contact picker (Chrome on Android). The app only ever sees the contacts the person ticks;
+// Chrome has no "select all" on purpose, so a whole address book comes in as a contacts file instead (vcard.js).
 export const canPickContacts = typeof navigator !== "undefined" && "contacts" in navigator && typeof window !== "undefined" && "ContactsManager" in window;
-export async function pickContact() {
-  const [c] = await navigator.contacts.select(["name", "tel"], {multiple: false});
-  if (!c) return null;
-  return {name: (c.name && c.name[0]) || "", tel: ((c.tel && c.tel[0]) || "").replace(/[^\d+]/g, "")};
+export async function pickContacts(multiple = true) {
+  const list = await navigator.contacts.select(["name", "tel"], {multiple});
+  return (list || []).map(c => ({name: (c.name && c.name[0]) || "", tel: ((c.tel && c.tel[0]) || "").replace(/[^\d+]/g, "")}));
 }
+export const pickContact = async () => (await pickContacts(false))[0] || null;
 // Opens the phone's dialer with the number filled in; the person taps call there.
 export const telHref = tel => `tel:${String(tel || "").replace(/[^\d+]/g, "")}`;
 // Chrome on Android lets a page open another app (here, the dialer) only within a few seconds of a tap.

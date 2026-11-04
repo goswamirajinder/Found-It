@@ -1,5 +1,5 @@
 // What the main column shows: home, search results, one room, or everything in General info.
-import {S, items, notes, roomsList, callTarget} from "./state.js";
+import {S, items, notes, roomsList, callTarget, findPeople} from "./state.js";
 import {callLink} from "./people.js";
 import {esc, icon, shortDate, fmtDate, ymd, today, daysBetween, OCCASIONS, nextDate, whenText, STARTERS} from "./data.js";
 import {searchItems} from "./search.js";
@@ -148,10 +148,14 @@ export function viewHome() {
   if (S.items.length) out.push(`<p class="hint">Everything is saved only on this phone. Back it up now and then from Settings.</p>`);
   return out.join("");
 }
+// Saved things first; people from the phone's contacts come after, in their own group, so they never crowd them out.
 export function viewSearch(q) {
-  const res = searchItems(q, S.items);
-  return sec(res.length ? `${res.length} ${res.length === 1 ? "match" : "matches"}` : "No matches",
-    res.length ? list(res) : `<p class="empty-note">Nothing matches “${esc(q)}” yet. Try another word, in English or Hinglish.</p>`);
+  const res = searchItems(q, S.items.filter(i => i.kind !== "person")), ppl = findPeople(q).people;
+  const out = [];
+  if (res.length || !ppl.length) out.push(sec(res.length ? `${res.length} ${res.length === 1 ? "match" : "matches"}` : "No matches",
+    res.length ? list(res) : `<p class="empty-note">Nothing matches “${esc(q)}” yet. Try another word, in English or Hinglish.</p>`));
+  if (ppl.length) out.push(sec("People to call", list(ppl)));
+  return out.join("");
 }
 export function viewRoom(room) {
   const k = room.toLowerCase();

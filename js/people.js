@@ -1,5 +1,5 @@
 // People to call: link a name to a phone number once, then "call mom" or a to-do's call button opens the dialer.
-import {$, toast, showErr, savePerson, findPerson, callTarget} from "./state.js";
+import {S, $, toast, showErr, savePerson, findPeople, callTarget} from "./state.js";
 import {esc, cap, icon} from "./data.js";
 import {canPickContacts, pickContact, telHref, dial} from "./device.js";
 
@@ -22,12 +22,14 @@ export function openPerson(who = "", editing = null, dialAfter = false) {
   $("#person-save").textContent = dialNext ? "Save and call" : "Save";
   if (!$("#person-dlg").open) $("#person-dlg").showModal();
 }
-// The call button on a to-do like "Call mom": dial if we know who that is, otherwise ask once.
+// The call button on a to-do like "Call mom": dial if it's clear who that is, ask which one if several
+// people fit (the voice sheet shows them), and link a number once if nobody does.
 export function callFromText(text) {
   const who = callTarget(text);
   if (!who) return false;
-  const p = findPerson(who);
-  if (p) dial(p.tel);
+  const {people: ps, sure} = findPeople(who);
+  if (sure) dial(ps[0].tel);
+  else if (ps.length && S.chooseCall) S.chooseCall(who);
   else openPerson(who, null, true);
   return true;
 }

@@ -5,6 +5,8 @@ import {searchItems, guessCategory, guessOccasion, hkey, devToLatin, norm, stem}
 import {nextDate, whenText, daysBetween, addDays, today} from "../js/data.js";
 import {schedule} from "../js/reminders.js";
 import {qrMatrix} from "../js/qr.js";
+import {parseVcards} from "../js/vcard.js";
+import {S, findPeople} from "../js/state.js";
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
@@ -161,6 +163,27 @@ t("searching in Hinglish and Hindi", () => {
   assert.equal(searchItems("kahan hai", items).length, 0);
   assert.equal(searchItems("jaankari", items).length, 4);
   assert.equal(parseCommand("General information: the gas agency number is on the fridge").intent, "note");
+});
+
+t("contacts: a whole contacts file, and who a name means", () => {
+  // Android writes Hindi names as quoted-printable with soft line breaks; Google folds long lines and groups numbers.
+  const hindi = [...Buffer.from("मम्मी", "utf8")].map(b => "=" + b.toString(16).toUpperCase().padStart(2, "0")).join("");
+  const vcf = ["BEGIN:VCARD", "VERSION:2.1", `FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:${hindi.slice(0, 27)}=`, hindi.slice(27), "TEL;HOME:011-2345 6789", "TEL;CELL:+91 98100 12345", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "N:Sharma;Rahul;;;", "item1.TEL;TYPE=pref:+91 99999 1", " 1111", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:No Number", "EMAIL:x@example.com", "END:VCARD"].join("\r\n");
+  assert.deepEqual(parseVcards(vcf), [{name: "मम्मी", tel: "+919810012345"}, {name: "Rahul Sharma", tel: "+919999911111"}]);
+  assert.deepEqual(parseVcards("not a contacts file"), []);
+  const P = (id, name, tel, aliases = []) => ({id, kind: "person", name, tel, aliases});
+  S.items = [P("1", "Mummy", "9810012345", ["mom"]), P("2", "Rahul Sharma", "9999911111"), P("3", "Rahul Office", "9999922222"), P("4", "Raj Plumber", "9876500000")];
+  const who = w => { const r = findPeople(w); return [r.people.map(p => p.id).join(","), r.sure]; };
+  assert.deepEqual(who("mom"), ["1", true]);
+  assert.deepEqual(who("mummy ka number"), ["1", true]);
+  assert.deepEqual(who("Rahul"), ["2,3", false]);
+  assert.deepEqual(who("Rahul Sharma"), ["2", true]);
+  assert.deepEqual(who("plumber"), ["4", true]);
+  assert.deepEqual(who("Raju"), ["4", false]);
+  assert.deepEqual(who("Sunita"), ["", false]);
+  S.items = [];
 });
 
 t("box labels decode to the same text", () => {

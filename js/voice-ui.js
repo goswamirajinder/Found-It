@@ -1,5 +1,5 @@
 // The voice sheet: listen, work out what was meant, then answer, or save after a short countdown.
-import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem, addToList, joinNames, findPerson} from "./state.js";
+import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem, addToList, joinNames, findPeople} from "./state.js";
 import {phrases} from "./phrases.js";
 import {callLink, openPerson} from "./people.js";
 import {esc, cap, newId, ago, fmtDate, daysBetween, today} from "./data.js";
@@ -73,7 +73,15 @@ export function handle(text) {
 }
 
 function showFind(q) {
-  const res = searchItems(q, S.items).slice(0, 5);
+  const res = searchItems(q, S.items.filter(i => i.kind !== "person")).slice(0, 5);
+  // A person's number, when that is what was asked ("mummy ka number") or nothing else matched.
+  const ps = findPeople(q).people;
+  if (ps.length && (!res.length || /\b(?:number|phone|mobile|contact)\b/i.test(q))) {
+    const a = T().personIs(ps[0].name, ps[0].tel);
+    result(`<p class="answer">${esc(a)}</p><div class="list">${ps.map(p => row(p)).join("")}</div>`);
+    say(a);
+    return;
+  }
   if (!res.length) { const a = T().notFound(q); result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
   const top = res[0];
   const t = T();
@@ -206,17 +214,31 @@ const confirmBought = q => confirmTick("buy", q);
 // and lets a page open the dialer only within a few seconds of a tap, so after a long pause the Call button does it.
 // A name it doesn't know gets linked to a contact once.
 function confirmCall(who) {
-  const p = findPerson(who), t = T();
-  if (!p) {
+  const {people: ps, sure} = findPeople(who), t = T();
+  const link = `<div class="row"><button class="btn${ps.length ? "" : " dark"}" type="button" data-v="link" data-who="${esc(who)}">${ps.length ? "Someone else: link" : "Link"} ${esc(who)} to a contact</button></div>`;
+  if (!ps.length) {
     const a = t.callUnknown(cap(who));
-    result(`<p class="answer">${esc(a)}</p><div class="row"><button class="btn dark" type="button" data-v="link" data-who="${esc(who)}">Link ${esc(who)} to a contact</button></div>`);
+    result(`<p class="answer">${esc(a)}</p>${link}`);
     say(a);
     return;
   }
-  const now = canOpenApps(), a = now ? t.calling(p.name) : t.callTap(p.name);
+  // Two people called Rahul, or a name that only nearly fits: show them, each with its own Call button.
+  if (!sure) {
+    const a = ps.length > 1 ? t.callWhich(cap(who), ps.length) : t.callMean(ps[0].name);
+    result(`<p class="answer">${esc(a)}</p><div class="list">${ps.map(p => row(p)).join("")}</div>${link}`);
+    say(a);
+    return;
+  }
+  const p = ps[0], now = canOpenApps(), a = now ? t.calling(p.name) : t.callTap(p.name);
   result(`<p class="answer">${esc(a)}</p>${callLink(p)}`);
   if (now) dial(p.tel);
   else say(a);
+}
+// The Call button on a to-do whose name fits several people: ask here which one.
+export function chooseCall(who) {
+  openVoice(false);
+  $("#heard").textContent = `“Call ${who}”`;
+  confirmCall(who);
 }
 function pickList(q, msg) {
   const res = searchItems(q, S.items.filter(i => i.kind === "item")).slice(0, 5);

@@ -41,6 +41,13 @@ export async function removeEntry(it) {
   S.items = S.items.filter(x => x.id !== it.id);
   changed();
 }
+// Many entries without photos (people to call) in one write.
+export async function removeMany(list) {
+  const ids = new Set(list.map(x => x.id));
+  await db.remove("entries", [...ids]);
+  S.items = S.items.filter(x => !ids.has(x.id));
+  changed();
+}
 export const P = () => phrases(S.settings.answerLang);
 export const joinNames = names => joinWith(names, P().and);
 // Adds things to the shopping list or the to-do list, a millisecond apart so they keep the order they were said in.
@@ -57,14 +64,56 @@ export async function addToList(kind, things) {
 
 /* people to call: saved on this phone, matched by name, nickname or family word ("mom" finds "Mummy") */
 export const people = () => S.items.filter(i => i.kind === "person" && i.tel);
-export function findPerson(who) {
-  const q = String(who || "").replace(/^(?:the|my|mere|meri|mera)\s+/i, "").trim();
-  if (!q) return null;
-  const ql = q.toLowerCase();
-  const exact = people().find(p => p.name.toLowerCase() === ql || p.aliases.some(a => a.toLowerCase() === ql));
-  if (exact) return exact;
-  const r = rank(q, people().map(p => ({...p, notes: p.aliases.join(" ")})));
-  return r.length && r[0].hit === r[0].of ? people().find(p => p.id === r[0].it.id) : null;
+// A person as search sees them: nicknames count as much as the name. Kept per person so search's word index is reused.
+const SEARCHABLE = new WeakMap();
+export function searchable(p) {
+  let x = SEARCHABLE.get(p);
+  if (!x) { x = {...p, name: [p.name, ...p.aliases].join(" ")}; SEARCHABLE.set(p, x); }
+  return x;
+}
+// Everyone a name could mean, best first, and whether the best one is a sure match: an exact name or nickname,
+// or every word matching as written, as a family word (mom/mummy) or as the start of a name.
+// Not sure (a near spelling, or two people called Rahul) means: ask which one before dialling.
+export function findPeople(who) {
+  const q = String(who || "").replace(/\b(?:number|phone|mobile|contact)\b/gi, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|my|mere|meri|mera)\s+/i, "");
+  if (!q) return {people: [], sure: false};
+  const ql = q.toLowerCase(), all = people(), byId = new Map(all.map(p => [p.id, p]));
+  const exact = all.filter(p => p.name.toLowerCase() === ql || p.aliases.some(a => a.toLowerCase() === ql));
+  if (exact.length) return {people: exact.slice(0, 5), sure: exact.length === 1};
+  const r = rank(q, all.map(searchable)).filter(x => x.hit === x.of);
+  if (!r.length) return {people: [], sure: false};
+  const tie = r.length > 1 && r[1].score >= r[0].score - 0.01;
+  if (!tie && r[0].score >= 2.4 * r[0].of) return {people: [byId.get(r[0].it.id)], sure: true};
+  return {people: r.slice(0, 5).map(x => byId.get(x.it.id)), sure: false};
+}
+const telKey = tel => String(tel || "").replace(/\D/g, "").slice(-10);
+// Many people at once (several picked from contacts, or a whole contacts file): one write and one redraw.
+// A number that's already saved keeps its name; a different name for it becomes a nickname, so either works.
+export async function savePeople(list) {
+  const now = new Date().toISOString(), byTel = new Map(people().map(p => [telKey(p.tel), p])), touched = new Map();
+  let added = 0, nicknamed = 0;
+  list.forEach(({name, tel}, i) => {
+    const nm = String(name || "").replace(/\s+/g, " ").trim().slice(0, 40), clean = String(tel || "").replace(/[^\d+]/g, ""), k = telKey(clean);
+    if (!nm || k.length < 6) return;
+    const same = byTel.get(k);
+    if (!same) {
+      const e = {id: `p${Date.now().toString(36)}${i.toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind: "person", name: nm, tel: clean, aliases: [], keptAt: now, createdAt: now, updatedAt: now};
+      byTel.set(k, e); touched.set(e.id, e); added++;
+    } else if (same.name.toLowerCase() !== nm.toLowerCase() && !same.aliases.some(a => a.toLowerCase() === nm.toLowerCase()) && same.aliases.length < 6) {
+      const e = {...same, aliases: [...same.aliases, nm], updatedAt: now};
+      byTel.set(k, e);
+      if (!touched.has(e.id)) nicknamed++;
+      touched.set(e.id, e);
+    }
+  });
+  const entries = [...touched.values()].map(db.cleanEntry).filter(Boolean);
+  if (entries.length) {
+    await db.putMany("entries", entries);
+    const fresh = new Map(entries.map(e => [e.id, e])), had = new Set(S.items.map(x => x.id));
+    S.items = [...S.items.map(x => fresh.get(x.id) || x), ...entries.filter(e => !had.has(e.id))];
+    changed();
+  }
+  return {added, nicknamed};
 }
 export async function savePerson({name, tel, alias}) {
   const clean = String(tel || "").replace(/[^\d+]/g, "");
