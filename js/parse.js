@@ -112,31 +112,61 @@ export function splitList(s) {
   return String(s || "").split(/\s*(?:,|;|&|\band\b|\baur\b|\bplus\b)\s*/i)
     .map(x => x.trim().replace(/^(?:some|a|an|the|more|kuch)\s+/i, "").replace(/[.!]+$/, "")).filter(Boolean).map(cap);
 }
-const BUY_LIST = /^(?:add\s+)?(.+?)\s+(?:to|in|on)\s+(?:the\s+|my\s+)?(?:shopping|grocery|groceries|market|to-buy|to buy)(?:\s+list)?$/i;
-const BUY_LEAD = /^(?:i\s+|we\s+)?(?:need to buy|have to buy|must buy|should buy|to buy|buy|purchase|shopping list|shopping|grocery list|groceries|market list)\b[:,\s-]+(.+)$/i;
-const BUY_HI = /^(?:(?:bazaar|bazar|market|dukaan|dukan)\s+se\s+)?(.+?)\s+(?:lana|lani|lane|laana|laani|kharidna|kharidni|kharidne|le aana|le ana)(?:\s+(?:hai|hain|he))?$/i;
-const BOUGHT = /^(?:i\s+(?:have\s+|just\s+)?|we\s+(?:have\s+)?)?(?:bought|purchased)\s+(?:the\s+)?(.+?)(?:\s+(?:from|at)\s+.+)?$/i;
+// Every way people say "put it on the shopping list", in English, Hinglish and Hindi. The first capture is the things.
+const LISTW = "(?:(?:shopping|grocery|groceries|buying|to-buy|to buy|purchase|buy)(?:\\s+list)?|(?:market|saman|samaan|kharidari)\\s+list)";
+const TO = "(?:to|in|on|into|onto)\\s+(?:the\\s+|my\\s+|our\\s+)?";
+const BUY_RES = [
+  new RegExp(`^(?:add|put|write|include|daal|dalo|daalo|likho|jodo)\\s+(.+?)\\s+${TO}${LISTW}$`, "i"),
+  new RegExp(`^(?:add|put|write)\\s+${TO}${LISTW}[:,\\s-]+(.+)$`, "i"),
+  new RegExp(`^(.+?)\\s+${TO}${LISTW}$`, "i"),
+  new RegExp(`^${LISTW}\\s+(?:mein|me|main|par|pe)\\s+(.+?)(?:\\s+(?:add|daal|dalo|daalo|likho|likh do|jodo)(?:\\s+(?:karo|kar do|do|dena))?)?$`, "i"),
+  /^(?:i\s+|we\s+)?(?:need to buy|have to buy|must buy|should buy|want to buy|to buy|buy|purchase|order|bring|pick up)\b[:,\s-]+(.+)$/i,
+  /^(?:shopping list|shopping|grocery list|groceries|market list|to buy list|buy list)\b[:,\s-]+(.+)$/i,
+  /^get\s+(?!.*\b(?:out|from|of|for|at|in|on|to|back|up|ready|done|home)\b)(.{1,40})$/i,
+  /^(?:i|we)\s+need\s+(?!to\b)(.+)$/i,
+  /^(?:we(?:'re| are)|i(?:'m| am))\s+(?:out of|running out of|running low on)\s+(.+)$/i,
+  /^(.+?)\s+(?:is|are|has|have)\s+(?:finished|over|empty|run out|running out|running low|got over)$/i,
+  /^(.+?)\s+(?:to buy|to be bought|needed)$/i,
+  /^(?:(?:bazaar|bazar|market|dukaan|dukan)\s+se\s+)?(.+?)\s+(?:lana|lani|lane|laana|laani|le aana|le ana|le aao|lao|kharidna|kharidni|kharidne|kharid lo|kharido|mangana|mangwana|mangani|mangwani)(?:\s+(?:hai|hain|he|h))?$/i,
+  /^(.+?)\s+(?:khatam|khatm|khtm)\s+(?:ho gaya|ho gayi|ho gaye|ho gya|ho gyi|hai|ho raha hai)$/i,
+  /^(.+?)\s+(?:खरीदना|ख़रीदना|खरीदनी|लाना|लानी|ले आना|मंगाना|मँगाना)(?:\s+(?:है|हैं))?$/,
+  /^(.+?)\s+(?:खत्म|ख़त्म)\s+(?:हो गया|हो गई|हो गयी)(?:\s+है)?$/
+];
+export function buyText(t) {
+  for (const re of BUY_RES) { const m = t.match(re); if (m && splitList(m[1]).length) return m[1]; }
+  return null;
+}
+const BOUGHT = /^(?:i\s+(?:have\s+|just\s+)?|we\s+(?:have\s+)?)?(?:bought|purchased|got)\s+(?:the\s+)?(.+?)(?:\s+(?:from|at)\s+.+)?$/i;
 const BOUGHT_HI = /^(.+?)\s+(?:le aaya|le aayi|le aaye|le aya|le ayi|kharid liya|kharid li|kharid liye)(?:\s+(?:hai|hain))?$/i;
 
 // Asking to hear the list: "speak out my shopping list", "what do I need to buy?", "kya kya lana hai".
-const LIST_ASK = /^(?:please\s+)?(?:speak|read|tell|show|say|give|list|open|what|which|sunao|suna|batao|bata|dikhao|bolo)\b|\b(?:sunao|suna do|batao|bata do|dikhao|bolo)$|\?$/i;
+const LIST_ASK = /^(?:please\s+)?(?:speak|read|tell|show|say|give|list|open|what|which|sunao|suna|batao|bata|dikhao|bolo)\b|\b(?:sunao|suna do|batao|bata do|dikhao|bolo)$/i;
 const LIST_WHAT = /\b(?:shopping|grocery|groceries|market|to[- ]?buy|buying)(?:\s+list)?\b|\b(?:need|have|got) to buy\b|\bshould (?:i|we) buy\b/i;
 const LIST_HI = /\bkya(?:\s+kya)?\s+(?:lana|lani|laana|kharidna|kharidni)\s+(?:hai|hain|he)\b/i;
+const WHEN_RE = /^(?:the\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tonight|tomorrow|morning|evening|night|afternoon|weekend|next\s+\w+|this\s+\w+|\d{1,2}(?::\d{2})?\s*(?:am|pm|o'?clock|baje)|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2})\b/i;
 // A request to the app that matched nothing else must not end up saved as a note.
 const APP_ASK = /^(?:please\s+)?(?:speak|read|tell me|show|open|play|sunao|batao|dikhao)\b.*\b(?:list|notes|boxes|everything)\b/i;
 
 // One sentence in, one intent out: find | keep | note | out | back | buy | bought | list | help | none.
 export function parseCommand(raw, knownRooms = []) {
-  const text = String(raw || "").replace(/\s+/g, " ").trim().replace(/^(?:ok(?:ay)?|hey|hi|hello|please|found it)[,.!\s]+/i, "");
+  const said = String(raw || "").replace(/\s+/g, " ").trim().replace(/^(?:ok(?:ay)?|hey|hi|hello|please|found it)[,.!\s]+/i, "");
+  // Phones often add a full stop or question mark; remember the question, then match on the bare words.
+  const asked = /\?\s*$/.test(said), text = said.replace(/[\s.!?।]+$/, "");
   if (!text) return {intent: "none", text};
   let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
-  if (m && m[1]) return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
-  if (LIST_HI.test(text) || (LIST_WHAT.test(text) && (LIST_ASK.test(text) || /^(?:my\s+|the\s+)?(?:shopping|grocery|market)\s+list$/i.test(text)))) return {intent: "list", text};
-  m = text.match(BUY_LIST) || text.match(BUY_LEAD) || text.match(BUY_HI);
-  if (m && splitList(m[1]).length) return {intent: "buy", items: splitList(m[1]), text};
+  if (m && m[1]) {
+    // "Note: buy milk" and "remind me to buy batteries" belong on the shopping list, unless a date was said.
+    const items = buyText(m[1]) || (/^remind me to buy\b/i.test(text) ? m[1].replace(/^buy\s+/i, "") : null);
+    if (items && !parseWhen(m[1]).date) return {intent: "buy", items: splitList(items), text};
+    return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
+  }
+  if (LIST_HI.test(text) || (LIST_WHAT.test(text) && (LIST_ASK.test(text) || asked || /^(?:my\s+|the\s+)?(?:shopping|grocery|market)\s+list$/i.test(text)))) return {intent: "list", text};
+  if (/^(?:i\s+)?(?:saw|seen|spotted|noticed|liked|loved|met|heard|thinking|idea)\b/i.test(text)) return {intent: "note", text: cap(text)};
+  const items = buyText(text);
+  if (items) return {intent: "buy", items: splitList(items), text};
   m = text.match(BOUGHT) || text.match(BOUGHT_HI);
   if (m) return {intent: "bought", query: m[1], text};
-  if (FIND_RE.test(text) || FIND_HI.test(text) || /\?$/.test(text)) return {intent: "find", query: findQuery(text), text};
+  if (FIND_RE.test(text) || FIND_HI.test(text) || asked) return {intent: "find", query: findQuery(text), text};
   m = text.match(/^(?:i\s+(?:have\s+|just\s+|am\s+)?)?(?:put|placed|kept|keep|putting)\s+(?:the\s+)?(.+?)\s+back\b(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i)
     || text.match(/^(?:i\s+(?:have\s+)?)?(?:returned|put back|kept back)\s+(?:the\s+)?(.+?)(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i);
   if (m) return {intent: "back", query: m[1], where: m[2] ? parseLine(`x in ${m[2]}`, knownRooms) : null, text};
@@ -147,9 +177,9 @@ export function parseCommand(raw, knownRooms = []) {
   m = text.match(/^(.+?)\s+(?:nikala|nikali|nikale|nikal liya|nikal li|nikaal liya|nikaala)(?:\s+hai)?$/i);
   if (m) return {intent: "out", query: m[1].replace(/\s+ko$/i, ""), text};
   if (APP_ASK.test(text)) return {intent: "help", text};
-  // Sightings and passing thoughts are notes even when they mention a place.
-  if (/^(?:i\s+)?(?:saw|seen|spotted|noticed|liked|loved|met|heard|thinking|idea)\b/i.test(text)) return {intent: "note", text: cap(text)};
   const p = parseLine(text, knownRooms);
+  // "The gas man comes on Monday": a day or a time is not a place, so that's a note.
+  if (p && p.where && !p.room && WHEN_RE.test(p.spot.replace(/^(?:on|at|in|by)\s+/i, ""))) return {intent: "note", text: cap(text)};
   if (p && p.where && p.name) return {intent: "keep", parsed: p, text};
   if (/^(?:i\s+(?:have\s+|'ve\s+|just\s+)?)?(?:kept|put|placed|stored|hid)\b/i.test(text) && p) return {intent: "keep", parsed: p, text};
   return {intent: "note", text: cap(text)};

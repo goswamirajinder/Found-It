@@ -3,7 +3,7 @@ import {S, items, notes, roomsList} from "./state.js";
 import {esc, icon, shortDate, fmtDate, ymd, today, daysBetween, OCCASIONS, nextDate, whenText, STARTERS} from "./data.js";
 import {searchItems} from "./search.js";
 import {photoUrl} from "./store.js";
-import {placeText} from "./device.js";
+import {placeText, canListen} from "./device.js";
 
 export const tapeHtml = it => `<span class="tape">${esc(it.room || "Somewhere")}${it.spot ? `<i>›</i>${esc(it.spot)}` : ""}</span>`;
 const sec = (title, inner, extra = "") => `<section class="sec"><h2><span>${title}</span>${extra}</h2>${inner}</section>`;
@@ -57,9 +57,10 @@ function buySection() {
       : `<span class="hint">${esc(shortDate(i.keptAt))}</span>`}</div>`;
   return sec(`To buy${open.length ? ` (${open.length})` : ""}`, `<div class="buy">
     <form class="buy-add" id="buy-form" novalidate><label class="sr" for="buy-input">Add something to buy</label>
-      <input class="input" id="buy-input" autocomplete="off" enterkeyhint="done" placeholder="Add things to buy, e.g. batteries, atta"><button class="btn dark" type="submit">Add</button></form>
+      <input class="input" id="buy-input" autocomplete="off" enterkeyhint="done" placeholder="Add things to buy, e.g. batteries, atta">
+      ${canListen ? `<button class="btn" type="button" data-act="buy-mic" aria-label="Say what to buy">${icon("mic")}</button>` : ""}<button class="btn dark" type="submit">Add</button></form>
     ${all.length ? `<div class="buy-list">${[...open, ...done].map(line).join("")}</div>`
-      : `<p class="hint">Things to get from the market stay here until you tick them off. Type several at once with commas, or tap the mic and say “buy batteries and bulbs”.</p>`}
+      : `<p class="hint">Things to get from the market stay here until you tick them off. Type several at once with commas${canListen ? ", or tap the mic here and just say them: “milk, eggs and bread”" : ""}.</p>`}
     ${done.length ? `<div class="buy-foot"><span class="hint">Ticked off: ${done.length}</span><button class="btn small ghost danger" type="button" data-act="clear-bought">Delete all bought</button></div>` : ""}
   </div>`, open.length ? `<button class="link" type="button" data-act="read-buy">Read aloud</button>` : "");
 }

@@ -1,7 +1,7 @@
 // The voice sheet: listen, work out what was meant, then answer, or save after a short countdown.
-import {S, $, saveEntry, patchEntry, knownRooms, bestItem} from "./state.js";
-import {esc, cap, newId, ago, fmtDateTime, fmtDate} from "./data.js";
-import {parseCommand, parseWhen} from "./parse.js";
+import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem} from "./state.js";
+import {esc, cap, newId, ago, fmtDate} from "./data.js";
+import {parseCommand, parseWhen, buyText, splitList} from "./parse.js";
 import {searchItems, rank, guessCategory, guessOccasion} from "./search.js";
 import {canListen, listen, voiceError, speak, stopSpeaking, locate, nearest} from "./device.js";
 import {row, tapeHtml, dayOf} from "./views.js";
@@ -10,7 +10,8 @@ import {openCapture, openItem, finishMove} from "./sheets.js";
 let rec = null, P = null;
 const result = html => { $("#voice-result").innerHTML = html; };
 const state = text => { $("#voice-state").textContent = text; };
-const say = text => { if (S.settings.speakAnswers) speak(text, S.settings.voiceLang); };
+const talk = text => speak(text, S.settings.voiceLang, S.settings.speechRate);
+const say = text => { if (S.settings.speakAnswers) talk(text); };
 const whereText = it => `${it.room || "somewhere"}${it.spot ? ", " + it.spot : ""}`;
 
 export function openVoice(autoStart = true) {
@@ -40,7 +41,9 @@ function start() {
 }
 function stop() { if (rec) { rec.cancel(); rec = null; } $("#listen").classList.remove("on"); }
 
+let lastText = "";
 export function handle(text) {
+  lastText = text;
   const cmd = parseCommand(text, knownRooms());
   $("#heard").textContent = `“${text}”`;
   state("Tap the mic to say something else.");
@@ -107,35 +110,60 @@ function confirmNote(cmd) {
       await saveEntry({id: newId(), kind: "note", name: text, remindOn, photoId: null, keptAt: now, createdAt: now, updatedAt: now, place: await hereNow()});
       return remindOn ? `Noted. I'll remind you on ${fmtDate(remindOn)}.` : "Noted.";
     },
-    edit: () => openCapture("note", {text, remindOn})
+    edit: () => openCapture("note", {text, remindOn}),
+    alt: {label: "Add to To buy instead", run: () => saveBuys(splitList(text))}
   });
 }
 // "You have 3 things to buy: atta, bulbs and milk." Used by voice and by the list's Read aloud button.
+// `spoken` numbers each thing and ends it with a full stop, so the voice pauses between them.
 export function shoppingText() {
   const open = S.items.filter(i => i.kind === "buy" && !i.bought).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-  if (!open.length) return {open, text: "Your shopping list is empty."};
-  const names = open.map(i => i.name);
+  if (!open.length) return {open, text: "Your shopping list is empty.", spoken: "Your shopping list is empty."};
+  const names = open.map(i => i.name), count = `You have ${open.length} thing${open.length === 1 ? "" : "s"} to buy`;
   const joined = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  return {open, text: `You have ${open.length} thing${open.length === 1 ? "" : "s"} to buy: ${joined}.`};
+  return {open, text: `${count}: ${joined}.`, spoken: `${count}. ${names.map((n, i) => `${i + 1}. ${n}.`).join(" ")}`};
 }
+export const readListAloud = () => talk(shoppingText().spoken);
 // Someone who asks to hear the list gets it read out even when spoken answers are off.
 function readList(speakIt) {
-  const {open, text} = shoppingText();
+  const {open, text, spoken} = shoppingText();
   result(`<p class="answer">${esc(text)}</p>${open.length ? `<div class="buy-list">${open.map(i => `<div class="buy-row">
     <button class="tick" type="button" data-vbuy="${esc(i.id)}" aria-pressed="false" aria-label="Mark as bought: ${esc(i.name)}"></button>
     <span class="buy-name">${esc(i.name)}</span><span></span></div>`).join("")}</div><p class="hint">Tap a circle when you've bought it.</p>` : ""}`);
-  if (speakIt) speak(text, S.settings.voiceLang);
+  if (speakIt) talk(spoken);
+}
+const saveBuys = async names => {
+  for (const [i, name] of names.entries()) {
+    const t = new Date(Date.now() + i).toISOString();
+    await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
+  }
+  return `Added ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`} to your shopping list.`;
+};
+// The mic inside the To buy list: everything said there is a thing to buy, so nothing ends up in notes.
+export function listenForBuy(btn) {
+  if (!canListen) return;
+  stopSpeaking();
+  btn.classList.add("on");
+  const input = $("#buy-input");
+  if (input) input.placeholder = "Listening… say what to buy";
+  listen({
+    lang: S.settings.voiceLang,
+    onText: t => { const i = $("#buy-input"); if (i) i.value = t; },
+    onDone: async t => {
+      btn.classList.remove("on");
+      const names = splitList(buyText(t.replace(/[\s.!?।]+$/, "")) || t);
+      if (!names.length) { toast("I didn't catch that. Tap the mic and try again."); return; }
+      const msg = await saveBuys(names);
+      toast(msg);
+      talk(msg);
+    },
+    onError: code => { btn.classList.remove("on"); toast(voiceError(code)); const i = $("#buy-input"); if (i) i.placeholder = "Add things to buy, e.g. batteries, atta"; }
+  });
 }
 function confirmBuy(names) {
   pending({
     html: `Add to your shopping list: <b>${esc(names.join(", "))}</b>`, label: "Add",
-    run: async () => {
-      for (const [i, name] of names.entries()) {
-        const t = new Date(Date.now() + i).toISOString();
-        await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
-      }
-      return `Added ${names.join(", ")} to your shopping list.`;
-    },
+    run: () => saveBuys(names),
     edit: () => { $("#voice-dlg").close(); const i = $("#buy-input"); if (i) { i.value = names.join(", "); i.focus(); } }
   });
 }
@@ -143,7 +171,8 @@ function confirmBought(q) {
   const open = S.items.filter(i => i.kind === "buy" && !i.bought);
   const r = rank(q, open);
   const it = r.length && r[0].hit === r[0].of ? r[0].it : null;
-  if (!it) { const a = `“${q}” isn't on your shopping list.`; result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
+  // "Got a call from Raju" isn't about shopping: if nothing on the list matches, keep it as a note.
+  if (!it) return confirmNote({text: cap(lastText)});
   pending({
     html: `Tick off <b>${esc(it.name)}</b> as bought?`, label: "Yes, bought",
     run: async () => { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); return `Ticked off ${it.name}. When you put it away, tap Put away next to it.`; },
@@ -178,12 +207,12 @@ function confirmBack(cmd) {
   });
 }
 
-function pending({html, label, run, edit}) {
+function pending({html, label, run, edit, alt}) {
   clearPending();
   const secs = S.settings.autoSave ? 4 : 0;
   result(`<div class="pending"><p>${html}</p>${secs ? `<div class="bar"><i style="--t:${secs}s"></i></div><p class="hint">Saving in ${secs} seconds…</p>` : ""}
-    <div class="row"><button class="btn primary" type="button" data-v="save">${esc(label)}</button><button class="btn" type="button" data-v="edit">Edit first</button><button class="btn ghost" type="button" data-v="cancel">Cancel</button></div></div>`);
-  P = {run, edit, timer: secs ? setTimeout(commit, secs * 1000) : 0};
+    <div class="row"><button class="btn primary" type="button" data-v="save">${esc(label)}</button>${alt ? `<button class="btn dark" type="button" data-v="alt">${esc(alt.label)}</button>` : ""}<button class="btn" type="button" data-v="edit">Edit first</button><button class="btn ghost" type="button" data-v="cancel">Cancel</button></div></div>`);
+  P = {run, edit, alt, timer: secs ? setTimeout(commit, secs * 1000) : 0};
 }
 function clearPending() { if (P && P.timer) clearTimeout(P.timer); P = null; }
 async function commit() {
@@ -206,6 +235,7 @@ export function wireVoice() {
     const v = b.dataset.v;
     if (v === "save") commit();
     else if (v === "cancel") { clearPending(); result(`<p class="answer">Cancelled. Nothing was saved.</p>`); }
+    else if (v === "alt" && P && P.alt) { const a = P.alt; clearPending(); const msg = await a.run(); result(`<p class="answer">${esc(msg)}</p>`); say(msg); }
     else if (v === "edit" && P) { const ed = P.edit; clearPending(); $("#voice-dlg").close(); ed(); }
   });
   // Closing the sheet mid-countdown keeps what was said rather than dropping it.

@@ -4,7 +4,7 @@ import {schedule} from "./reminders.js";
 import {DEFAULT_ROOMS} from "./data.js";
 import {rank} from "./search.js";
 
-export const DEFAULT_SETTINGS = {voiceLang: "en-IN", speakAnswers: true, autoSave: true, autoLocation: false, reminders: false};
+export const DEFAULT_SETTINGS = {voiceLang: "en-IN", speakAnswers: true, speechRate: 0.85, autoSave: true, autoLocation: false, reminders: false};
 export const S = {items: [], places: [], settings: {...DEFAULT_SETTINGS}, ready: false, view: {kind: "home"}, render: () => {}};
 export const $ = s => document.querySelector(s);
 

@@ -4,10 +4,11 @@ import {wireBoxes, openBox, newCode} from "./boxes.js";
 import {splitList} from "./parse.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
-import {wireVoice, openVoice, shoppingText} from "./voice-ui.js";
+import {wireVoice, openVoice, readListAloud, listenForBuy} from "./voice-ui.js";
 import {exportAll, importAll, wipeAll, getMeta, setMeta} from "./store.js";
 import {esc, newId, today, addDays} from "./data.js";
 import {canListen, canLocate, locate, locError, speak} from "./device.js";
+const RATES = [[0.7, "Slow"], [0.85, "A little slow"], [1, "Normal"]];
 
 function render() {
   const q = $("#q").value.trim();
@@ -36,6 +37,7 @@ function drawSettings() {
     <div class="field"><label for="s-lang">Language you speak in</label><select class="input" id="s-lang">${LANGS.map(([v, l]) => `<option value="${v}"${s.voiceLang === v ? " selected" : ""}>${l}</option>`).join("")}</select>
       <p class="hint">English (India) understands Indian names and Hinglish like “passport almari mein rakha”.</p></div>
     <label class="toggle"><input type="checkbox" id="s-speak"${s.speakAnswers ? " checked" : ""}><span>Read answers aloud</span></label>
+    <div class="field"><label for="s-rate">Speaking speed</label><div class="vtype"><select class="input" id="s-rate">${RATES.map(([v, l]) => `<option value="${v}"${s.speechRate === v ? " selected" : ""}>${l}</option>`).join("")}</select><button class="btn" type="button" id="s-rate-try">Try it</button></div></div>
     <label class="toggle"><input type="checkbox" id="s-auto"${s.autoSave ? " checked" : ""}><span>Save spoken entries after a 4-second countdown</span></label>
   </section>
   <section class="set-group"><h3>Location</h3>
@@ -117,6 +119,7 @@ async function onSettingsClick(e) {
       toast(`Saved this spot as ${label}`);
     } catch (err) { m.textContent = locError(err); b.disabled = false; }
   } else if (b.id === "s-newbox") { $("#set-dlg").close(); openBox(newCode()); }
+  else if (b.id === "s-rate-try") speak("You have 3 things to buy. 1. Milk. 2. Bread. 3. Batteries.", S.settings.voiceLang, S.settings.speechRate);
   else if (b.id === "s-rem") enableReminders();
   else if (b.id === "s-backup") {
     b.disabled = true;
@@ -132,6 +135,7 @@ async function onSettingsChange(e) {
   const t = e.target;
   if (t.id === "s-lang") await saveSettings({voiceLang: t.value});
   else if (t.id === "s-speak") await saveSettings({speakAnswers: t.checked});
+  else if (t.id === "s-rate") await saveSettings({speechRate: Number(t.value) || 0.85});
   else if (t.id === "s-auto") await saveSettings({autoSave: t.checked});
   else if (t.id === "s-loc") {
     await saveSettings({autoLocation: t.checked});
@@ -196,7 +200,8 @@ function wire() {
     else if (act === "keep" || act === "note") openCapture(act === "keep" ? "item" : "note");
     else if (act === "install" && S.installEvent) { S.installEvent.prompt(); await S.installEvent.userChoice.catch(() => null); S.installEvent = null; render(); }
     else if (act === "clear-examples") { for (const it of S.items.filter(i => i.example)) await removeEntry(it); toast("Examples cleared"); }
-    else if (act === "read-buy") speak(shoppingText().text, S.settings.voiceLang);
+    else if (act === "read-buy") readListAloud();
+    else if (act === "buy-mic") listenForBuy(b);
     else if (act === "clear-bought") { for (const it of S.items.filter(i => i.kind === "buy" && i.bought)) await removeEntry(it); toast("Bought things deleted"); }
   });
   // Shopping list: several things at once with commas or "and"; the box stays focused for the next one.

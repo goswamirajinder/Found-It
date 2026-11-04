@@ -1,6 +1,6 @@
 // Found It service worker: keeps the app working offline and shows due reminders as phone notifications.
 // Bump CACHE when you release a new version so phones pick up the new files.
-const CACHE = "found-it-v3";
+const CACHE = "found-it-v4";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "js/app.js", "js/data.js", "js/search.js", "js/parse.js",
   "js/store.js", "js/state.js", "js/device.js", "js/reminders.js", "js/views.js", "js/sheets.js", "js/voice-ui.js", "js/qr.js", "js/boxes.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];

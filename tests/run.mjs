@@ -36,8 +36,12 @@ t("spoken commands", () => {
   assert.equal(c("where did I keep the passport").query, "the passport");
   assert.equal(c("I kept the passport in the steel almirah").intent, "keep");
   assert.equal(c("I kept the passport in the steel almirah").parsed.spot, "Steel almirah");
-  assert.equal(c("Note buy batteries for the remote").intent, "note");
-  assert.equal(c("Note buy batteries for the remote").text, "Buy batteries for the remote");
+  assert.deepEqual(pick(c("Note buy batteries for the remote"), ["intent", "items"]), {intent: "buy", items: ["Batteries for the remote"]});
+  assert.equal(c("Note the gas man comes on Monday").intent, "note");
+  for (const s of ["The gas man comes on Monday", "Meeting at 5 pm", "Doctor appointment on 20 November", "Plumber coming tomorrow morning at 10 am"])
+    assert.equal(c(s).intent, "note", s);
+  assert.equal(c("Car parked at B2 pillar 14").intent, "keep");
+  assert.equal(c("Note the gas man comes on Monday").text, "The gas man comes on Monday");
   assert.equal(c("Saw a nice brass lamp at Dilli Haat for 1200 rupees").intent, "note");
   assert.equal(c("Found the remote under the sofa cushion").intent, "keep");
   assert.equal(c("The plumber's number is 98100 12345").intent, "note");
@@ -65,6 +69,21 @@ t("shopping list", () => {
   assert.equal(c("I need to buy milk").intent, "buy");
   assert.equal(c("Read my notes list").intent, "help");
   assert.equal(c("Tell Ramesh to fix the tap").intent, "note");
+  const buys = [
+    ["Add milk to the shopping list.", ["Milk"]], ["add to my shopping list eggs and bread", ["Eggs", "Bread"]],
+    ["Put sugar on the shopping list", ["Sugar"]], ["Milk to buy", ["Milk"]], ["We need sugar and tea", ["Sugar", "Tea"]],
+    ["We're out of tea.", ["Tea"]], ["Milk is finished", ["Milk"]], ["doodh khatam ho gaya", ["Doodh"]],
+    ["shopping list mein atta add karo", ["Atta"]], ["Note buy batteries", ["Batteries"]], ["Remind me to buy a gift", ["Gift"]],
+    ["Get bread and eggs", ["Bread", "Eggs"]], ["Bring 2 kg onions", ["2 kg onions"]], ["Buy AA batteries!", ["AA batteries"]],
+    ["sabzi mangwani hai", ["Sabzi"]], ["दूध खरीदना है", ["दूध"]], ["Order a new gas cylinder", ["New gas cylinder"]]
+  ];
+  for (const [s, items] of buys) assert.deepEqual(pick(c(s), ["intent", "items"]), {intent: "buy", items}, s);
+  assert.equal(c("Remind me to buy a gift on 20 November").intent, "note");
+  assert.equal(c("Saw a nice lamp in the market").intent, "note");
+  assert.notEqual(c("Get the passport out of the locker").intent, "buy");
+  assert.deepEqual(pick(c("I got the milk"), ["intent", "query"]), {intent: "bought", query: "milk"});
+  assert.equal(c("What do I need to buy").intent, "list");
+  assert.equal(c("Where is my passport.").intent, "find");
 });
 
 t("box labels decode to the same text", () => {

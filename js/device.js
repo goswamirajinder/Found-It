@@ -33,11 +33,12 @@ export function voiceError(code) {
   if (code === "audio-capture") return "No microphone was found.";
   return "Voice input stopped. Tap the mic to try again.";
 }
-export function speak(text, lang = "en-IN") {
+export function speak(text, lang = "en-IN", rate = 1) {
   if (!canSpeak || !text) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang;
+  u.rate = rate;
   const voices = speechSynthesis.getVoices();
   const v = voices.find(x => x.lang === lang) || voices.find(x => x.lang.replace("_", "-").startsWith(lang.slice(0, 2)));
   if (v) u.voice = v;
