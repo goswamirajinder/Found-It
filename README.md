@@ -29,6 +29,7 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “I put the lights back in the loft” | Puts it back somewhere new and keeps the old place in its history |
 | “Buy AA batteries, bulbs and atta” / “Doodh aur bread lana hai” | Adds them to the shopping list |
 | “We need sugar” / “Milk is finished” / “Doodh khatam ho gaya” / “Shopping list mein atta add karo” | Also add to the shopping list |
+| “Bazaar se dudh laane hai, kele laane hain” / “Mujhe dudh aur bread chahiye” / “Aata paneer daliya gobhi” | Each thing becomes its own line on the list, even without commas |
 | “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
 | “Read my shopping list” / “What do I need to buy?” / “Kya kya lana hai?” | Reads the shopping list aloud |
 

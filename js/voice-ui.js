@@ -1,7 +1,7 @@
 // The voice sheet: listen, work out what was meant, then answer, or save after a short countdown.
-import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem} from "./state.js";
+import {S, $, toast, saveEntry, patchEntry, knownRooms, bestItem, addBuys} from "./state.js";
 import {esc, cap, newId, ago, fmtDate} from "./data.js";
-import {parseCommand, parseWhen, buyText, splitList} from "./parse.js";
+import {parseCommand, parseWhen, buyItems, splitItems} from "./parse.js";
 import {searchItems, rank, guessCategory, guessOccasion} from "./search.js";
 import {canListen, listen, voiceError, speak, stopSpeaking, locate, nearest} from "./device.js";
 import {row, tapeHtml, dayOf} from "./views.js";
@@ -111,7 +111,7 @@ function confirmNote(cmd) {
       return remindOn ? `Noted. I'll remind you on ${fmtDate(remindOn)}.` : "Noted.";
     },
     edit: () => openCapture("note", {text, remindOn}),
-    alt: {label: "Add to To buy instead", run: () => saveBuys(splitList(text))}
+    alt: {label: "Add to To buy instead", run: () => saveBuys(thingsToBuy(text))}
   });
 }
 // "You have 3 things to buy: atta, bulbs and milk." Used by voice and by the list's Read aloud button.
@@ -132,13 +132,9 @@ function readList(speakIt) {
     <span class="buy-name">${esc(i.name)}</span><span></span></div>`).join("")}</div><p class="hint">Tap a circle when you've bought it.</p>` : ""}`);
   if (speakIt) talk(spoken);
 }
-const saveBuys = async names => {
-  for (const [i, name] of names.entries()) {
-    const t = new Date(Date.now() + i).toISOString();
-    await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
-  }
-  return `Added ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`} to your shopping list.`;
-};
+const saveBuys = addBuys;
+// Everything said into the To buy list is something to buy: strip the verbs, keep the things.
+export const thingsToBuy = t => { const s = String(t || "").replace(/[\s.!?।]+$/, ""); return buyItems(s) || splitItems(s); };
 // The mic inside the To buy list: everything said there is a thing to buy, so nothing ends up in notes.
 export function listenForBuy(btn) {
   if (!canListen) return;
@@ -151,7 +147,7 @@ export function listenForBuy(btn) {
     onText: t => { const i = $("#buy-input"); if (i) i.value = t; },
     onDone: async t => {
       btn.classList.remove("on");
-      const names = splitList(buyText(t.replace(/[\s.!?।]+$/, "")) || t);
+      const names = thingsToBuy(t);
       if (!names.length) { toast("I didn't catch that. Tap the mic and try again."); return; }
       const msg = await saveBuys(names);
       toast(msg);

@@ -1,8 +1,8 @@
 // The bottom sheets: save something (put away or note), one entry up close, and moved / put back.
-import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn} from "./state.js";
+import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addBuys} from "./state.js";
 import {OCCASIONS, CATS, catLabel, esc, cap, isYmd, newId, nextDate, fmtDate, fmtDateTime, ymd, addDays, daysBetween, today, ago} from "./data.js";
 import {guessCategory, guessOccasion} from "./search.js";
-import {parseLine} from "./parse.js";
+import {parseLine, buyItems, splitItems} from "./parse.js";
 import {savePhoto, deletePhoto, photoUrl} from "./store.js";
 import {canLocate, locate, nearest, mapsUrl, placeText, locError} from "./device.js";
 
@@ -15,7 +15,7 @@ export const fillSpots = (roomSel, dlSel) => { $(dlSel).innerHTML = spotsIn($(ro
 export const fillRoomsDl = () => { $("#dl-rooms").innerHTML = roomChoices().map(n => `<option value="${esc(n)}"></option>`).join(""); };
 
 /* ---------- save something ---------- */
-const F = {mode: "item", editing: null, blob: null, previewUrl: "", removePhoto: false, touched: {}, cat: "other", occ: null, catTouched: false, occTouched: false, pos: null, posP: null, boxId: null, fromBuy: null};
+const F = {mode: "item", editing: null, blob: null, previewUrl: "", removePhoto: false, touched: {}, cat: "other", occ: null, catTouched: false, occTouched: false, pos: null, posP: null, boxId: null, replaces: null};
 const currentBox = () => (F.mode === "item" && F.boxId ? S.items.find(i => i.kind === "box" && i.code === F.boxId) || null : null);
 // Putting something into a box: the box says where it is, so the room and spot fields step aside.
 function syncBox() {
@@ -79,7 +79,7 @@ function startLocate() {
 
 export function openCapture(mode = "item", pre = {}, editing = null) {
   Object.assign(F, {editing, blob: null, removePhoto: false, touched: {}, catTouched: !!editing, occTouched: !!editing, pos: null, posP: null,
-    boxId: pre.boxId || (editing && editing.boxId) || null, fromBuy: pre.fromBuy || null});
+    boxId: pre.boxId || (editing && editing.boxId) || null, replaces: pre.replaces || null});
   if (F.previewUrl) { URL.revokeObjectURL(F.previewUrl); F.previewUrl = ""; }
   const e = editing || {};
   $("#cap-mode").hidden = !!editing;
@@ -110,6 +110,7 @@ export function openCapture(mode = "item", pre = {}, editing = null) {
   loc.checked = !editing && canLocate && S.settings.autoLocation;
   locStatus(editing && e.place ? `Location saved: ${placeText(e.place)}. Switch on to replace it with where you are now.` : "");
   if (loc.checked) startLocate();
+  if (pre.quick) { $("#f-quick").value = pre.quick; onQuick(); }
   $("#cap-dlg").showModal();
   $("#cap-dlg .sh-body").scrollTop = 0;
   if (matchMedia("(pointer: fine)").matches) (F.mode === "note" ? $("#f-text") : pre.name ? $("#f-room") : $("#f-quick")).focus();
@@ -178,7 +179,7 @@ async function saveCapture(ev) {
       toast("Saved");
     } else {
       await saveEntry({id: newId(), status: "kept", history: [], photoId: null, keptAt: now, createdAt: now, updatedAt: now, ...body});
-      if (F.fromBuy) { const b = S.items.find(i => i.id === F.fromBuy); if (b) await removeEntry(b); }
+      if (F.replaces) { const b = S.items.find(i => i.id === F.replaces); if (b) await removeEntry(b); }
       toast(body.kind === "note" ? "Noted" : `Saved: ${body.name} → ${body.room || "Somewhere"}${body.spot ? " › " + body.spot : ""}`);
     }
     $("#cap-dlg").close();
@@ -240,7 +241,7 @@ function drawItem(it) {
   if (it.notes) facts.push(["Notes", it.notes]);
   const hist = (it.history || []).filter(h => h.room || h.spot);
   const acts = buy ? (it.bought ? [["buy-put", "Put it away", "primary"], ["buy-undo", "Not bought yet", ""]] : [["buy-done", "Mark as bought", "primary"]])
-    : note ? [["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
+    : note ? [["to-buy", "Move to To buy", "dark"], ["to-item", "Turn into Put away", ""], ["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
     : it.status === "out" ? [["putback", "Put it back", "primary"], ["edit", "Edit details", ""]]
     : [["seen", "Found it here", "dark"], ["out", "Taking it out", ""], ["moved", "It's somewhere else", ""], ["edit", "Edit details", ""]];
   $("#item-body").innerHTML = `
@@ -267,7 +268,15 @@ async function onItemClick(e) {
   try {
     if (act === "buy-done") { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); toast(`Ticked off: ${it.name}`); }
     else if (act === "buy-undo") await patchEntry(it.id, {bought: false, boughtAt: null});
-    else if (act === "buy-put") { dlg.close(); openCapture("item", {name: it.name, fromBuy: it.id}); }
+    else if (act === "buy-put") { dlg.close(); openCapture("item", {name: it.name, replaces: it.id}); }
+    // A note that was really a shopping list, or really "where I put something".
+    else if (act === "to-buy") {
+      const t = it.name.replace(/[\s.!?।]+$/, ""), msg = await addBuys(buyItems(t) || splitItems(t));
+      await removeEntry(it);
+      dlg.close();
+      toast(msg);
+    }
+    else if (act === "to-item") { dlg.close(); openCapture("item", {quick: it.name, replaces: it.id}); }
     else if (act === "seen") { await patchEntry(it.id, {seenAt: new Date().toISOString()}); toast("Noted: still there today."); }
     else if (act === "out") { await patchEntry(it.id, {status: "out", outAt: new Date().toISOString()}); dlg.close(); toast("Marked as taken out. Tap Put back when it goes back."); }
     else if (act === "putback" || act === "moved") { dlg.close(); openMove(it, act); }

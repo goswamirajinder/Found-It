@@ -1,7 +1,7 @@
 // Starts the app: loads saved data, draws the home screen, and wires the header, dock and settings.
-import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry} from "./state.js";
+import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addBuys} from "./state.js";
 import {wireBoxes, openBox, newCode} from "./boxes.js";
-import {splitList} from "./parse.js";
+import {thingsToBuy} from "./voice-ui.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
 import {wireVoice, openVoice, readListAloud, listenForBuy} from "./voice-ui.js";
@@ -190,7 +190,7 @@ function wire() {
     if (b.dataset.box) return openBox(b.dataset.box);
     const buyIt = S.items.find(i => i.id === (b.dataset.buyToggle || b.dataset.buyPut || b.dataset.buyDel));
     if (buyIt && b.dataset.buyToggle) return patchEntry(buyIt.id, buyIt.bought ? {bought: false, boughtAt: null} : {bought: true, boughtAt: new Date().toISOString()});
-    if (buyIt && b.dataset.buyPut) return openCapture("item", {name: buyIt.name, fromBuy: buyIt.id});
+    if (buyIt && b.dataset.buyPut) return openCapture("item", {name: buyIt.name, replaces: buyIt.id});
     if (buyIt && b.dataset.buyDel) { await removeEntry(buyIt); toast(`Deleted ${buyIt.name}`); return; }
     if (b.dataset.room !== undefined) return S.goRoom(b.dataset.room);
     if (b.dataset.putback) { const it = S.items.find(i => i.id === b.dataset.putback); if (it) openMove(it, "putback"); return; }
@@ -208,13 +208,9 @@ function wire() {
   $("#main").addEventListener("submit", async e => {
     if (e.target.id !== "buy-form") return;
     e.preventDefault();
-    const names = splitList($("#buy-input").value);
+    const names = thingsToBuy($("#buy-input").value);
     if (!names.length) { $("#buy-input").focus(); return; }
-    // A millisecond apart, so the list keeps the order they were typed in.
-    for (const [i, name] of names.entries()) {
-      const t = new Date(Date.now() + i).toISOString();
-      await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
-    }
+    await addBuys(names);
     const input = $("#buy-input");
     if (input) input.focus();
   });

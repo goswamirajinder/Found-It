@@ -127,13 +127,66 @@ const BUY_RES = [
   /^(?:we(?:'re| are)|i(?:'m| am))\s+(?:out of|running out of|running low on)\s+(.+)$/i,
   /^(.+?)\s+(?:is|are|has|have)\s+(?:finished|over|empty|run out|running out|running low|got over)$/i,
   /^(.+?)\s+(?:to buy|to be bought|needed)$/i,
-  /^(?:(?:bazaar|bazar|market|dukaan|dukan)\s+se\s+)?(.+?)\s+(?:lana|lani|lane|laana|laani|le aana|le ana|le aao|lao|kharidna|kharidni|kharidne|kharid lo|kharido|mangana|mangwana|mangani|mangwani)(?:\s+(?:hai|hain|he|h))?$/i,
   /^(.+?)\s+(?:khatam|khatm|khtm)\s+(?:ho gaya|ho gayi|ho gaye|ho gya|ho gyi|hai|ho raha hai)$/i,
   /^(.+?)\s+(?:खरीदना|ख़रीदना|खरीदनी|लाना|लानी|ले आना|मंगाना|मँगाना)(?:\s+(?:है|हैं))?$/,
   /^(.+?)\s+(?:खत्म|ख़त्म)\s+(?:हो गया|हो गई|हो गयी)(?:\s+है)?$/
 ];
-export function buyText(t) {
-  for (const re of BUY_RES) { const m = t.match(re); if (m && splitList(m[1]).length) return m[1]; }
+
+// Hinglish as the phone's speech service writes it: "Mazar se dudh laane Hai kele laane Hain amrud Jaane Hain".
+// Each "laane hai" ends one thing, "bazaar" is often heard as "mazar", and "laane" as "jaane".
+const BUY_VERB_HI = "(?:laane|lane|lana|lani|laana|laani|lao|le aana|le aao|le ana|lekar aana|le kar aana|lete aana|lete aao|lena|leni|lene|kharidna|kharidni|kharidne|kharid lo|kharido|kharid lena|mangana|mangwana|mangani|mangwani|manga lo|mangwa lo|chahiye|chahie|chaiye)(?:\\s+(?:hai|hain|he|h|ho))?";
+const HI_BUY = new RegExp(`\\s${BUY_VERB_HI}(?=[\\s,]|$)`, "i");
+const HI_BUY_ALL = new RegExp(`\\s${BUY_VERB_HI}(?=[\\s,]|$)|\\s(?:jaane|jane|jaana|jana)\\s+(?:hai|hain|he)(?=[\\s,]|$)|\\s(?:la|le)$`, "gi");
+const MARKET_SE = /\b(?:bazaar|bazar|bajar|bajaar|mazar|market|mandi|dukaan|dukan|shop|store|supermarket)\s+(?:se|say|sey)\b/gi;
+const FOR_WHOM = /\b(?:mujhe|muje|hume|humein|hamein|hamko|mere liye|ghar ke liye)\b/gi;
+const cleanBuy = s => s.replace(MARKET_SE, " ").replace(HI_BUY_ALL, ",").replace(FOR_WHOM, " ").replace(/\s+/g, " ").replace(/^[\s,]+|[\s,]+$/g, "");
+
+// Everyday grocery and household words, so a spoken list with no commas ("aata paneer daliya gobhi") splits into things.
+const GROCERY = ("aata atta ata chawal rice dal daal daliya dalia paneer dudh doodh milk dahi curd yogurt makhan butter ghee tel oil cheeni chini sugar " +
+  "namak salt chai tea coffee bread pav anda ande egg eggs sabzi sabji aloo alu potato potatoes pyaz pyaaz onion onions tamatar tomato tomatoes " +
+  "gobhi gobi cauliflower cabbage bhindi okra matar peas palak spinach methi gajar carrot carrots mooli baingan brinjal lauki tori karela " +
+  "capsicum mirch chilli chillies adrak ginger lahsun garlic dhaniya coriander pudina mint nimbu lemon lemons kela kele banana bananas seb apple apples " +
+  "santra orange oranges angoor grapes aam mango mangoes amrud guava papita papaya anar pomegranate tarbooz watermelon kharbooja nariyal coconut " +
+  "besan suji sooji rava maida poha rajma chana chole moong masoor urad arhar toor haldi turmeric jeera cumin rai saunf elaichi laung masala " +
+  "biscuit biscuits namkeen maggi noodles pasta ketchup jam cheese cream juice cornflakes oats honey shahad " +
+  "sabun soap shampoo detergent surf toothpaste brush harpic phenyl tissue tissues foil agarbatti matchbox batteries battery bulb bulbs candles").split(" ");
+const GSET = new Set(GROCERY);
+const GMULTI = ["chai patti", "shimla mirch", "hari mirch", "lal mirch", "green chilli", "kali mirch", "sarson tel", "sarson ka tel", "olive oil",
+  "brown bread", "toned milk", "dish wash", "dishwash bar", "washing powder", "toilet cleaner", "garbage bags", "gas cylinder"].map(p => p.split(" "));
+const UNIT = /^(?:\d+(?:\.\d+)?|half|aadha|aadhi|ek|do|teen|char|paanch|one|two|three|four|five|six|dozen|darjan|kg|kilo|kilos|g|gm|gram|grams|l|ltr|litre|litres|liter|liters|ml|packet|packets|pack|packs|piece|pieces|pcs|bottle|bottles|dabba|bag|bags|bunch|gaddi)$/i;
+const low = w => w.toLowerCase().replace(/[^a-z0-9ऀ-ॿ]/g, "");
+function vocabSplit(part) {
+  const w = part.split(/\s+/).filter(Boolean), lw = w.map(low);
+  if (lw.filter(x => GSET.has(x)).length < 2) return [part];
+  const items = [];
+  let pre = [];
+  for (let i = 0; i < w.length;) {
+    let len = GSET.has(lw[i]) ? 1 : 0;
+    for (const mw of GMULTI) if (mw.length > len && mw.every((t, k) => lw[i + k] === t)) len = mw.length;
+    if (len) { items.push([...pre, ...w.slice(i, i + len)]); pre = []; i += len; continue; }
+    // "dudh 2 litre": amounts belong to the thing before them; other words lead into the next thing ("brown bread").
+    if (UNIT.test(lw[i]) && items.length && !pre.length) items[items.length - 1].push(w[i]);
+    else pre.push(w[i]);
+    i++;
+  }
+  if (pre.length) { if (items.length) items[items.length - 1].push(...pre); else items.push(pre); }
+  return items.map(x => x.join(" "));
+}
+export const splitItems = s => splitList(s).flatMap(vocabSplit).map(cap);
+// Only grocery words (and amounts): a spoken list with nothing else, like "aata paneer daliya gobhi".
+function groceryOnly(t) {
+  const ws = t.split(/[\s,]+/).map(low).filter(x => x && !/^(?:and|aur|plus)$/.test(x));
+  const known = ws.filter(x => GSET.has(x)).length;
+  return known >= 2 && ws.every(x => GSET.has(x) || UNIT.test(x) || GMULTI.some(m => m.includes(x))) ? splitItems(t) : null;
+}
+
+// The things to buy in a sentence, or null when it isn't about shopping.
+export function buyItems(t) {
+  for (const re of BUY_RES) {
+    const m = t.match(re);
+    if (m) { const items = splitItems(cleanBuy(m[1])); if (items.length) return items; }
+  }
+  if (HI_BUY.test(t)) { const items = splitItems(cleanBuy(t)); if (items.length) return items; }
   return null;
 }
 const BOUGHT = /^(?:i\s+(?:have\s+|just\s+)?|we\s+(?:have\s+)?)?(?:bought|purchased|got)\s+(?:the\s+)?(.+?)(?:\s+(?:from|at)\s+.+)?$/i;
@@ -156,14 +209,14 @@ export function parseCommand(raw, knownRooms = []) {
   let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
   if (m && m[1]) {
     // "Note: buy milk" and "remind me to buy batteries" belong on the shopping list, unless a date was said.
-    const items = buyText(m[1]) || (/^remind me to buy\b/i.test(text) ? m[1].replace(/^buy\s+/i, "") : null);
-    if (items && !parseWhen(m[1]).date) return {intent: "buy", items: splitList(items), text};
+    const items = buyItems(m[1]) || (/^remind me to buy\b/i.test(text) ? splitItems(m[1].replace(/^buy\s+/i, "")) : null);
+    if (items && !parseWhen(m[1]).date) return {intent: "buy", items, text};
     return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
   }
   if (LIST_HI.test(text) || (LIST_WHAT.test(text) && (LIST_ASK.test(text) || asked || /^(?:my\s+|the\s+)?(?:shopping|grocery|market)\s+list$/i.test(text)))) return {intent: "list", text};
   if (/^(?:i\s+)?(?:saw|seen|spotted|noticed|liked|loved|met|heard|thinking|idea)\b/i.test(text)) return {intent: "note", text: cap(text)};
-  const items = buyText(text);
-  if (items) return {intent: "buy", items: splitList(items), text};
+  const items = buyItems(text);
+  if (items) return {intent: "buy", items, text};
   m = text.match(BOUGHT) || text.match(BOUGHT_HI);
   if (m) return {intent: "bought", query: m[1], text};
   if (FIND_RE.test(text) || FIND_HI.test(text) || asked) return {intent: "find", query: findQuery(text), text};
@@ -182,5 +235,7 @@ export function parseCommand(raw, knownRooms = []) {
   if (p && p.where && !p.room && WHEN_RE.test(p.spot.replace(/^(?:on|at|in|by)\s+/i, ""))) return {intent: "note", text: cap(text)};
   if (p && p.where && p.name) return {intent: "keep", parsed: p, text};
   if (/^(?:i\s+(?:have\s+|'ve\s+|just\s+)?)?(?:kept|put|placed|stored|hid)\b/i.test(text) && p) return {intent: "keep", parsed: p, text};
+  const groceries = groceryOnly(text);
+  if (groceries) return {intent: "buy", items: groceries, text};
   return {intent: "note", text: cap(text)};
 }

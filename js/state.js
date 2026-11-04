@@ -40,6 +40,14 @@ export async function removeEntry(it) {
   S.items = S.items.filter(x => x.id !== it.id);
   changed();
 }
+// Adds things to the shopping list, a millisecond apart so they keep the order they were said in.
+export async function addBuys(names) {
+  for (const [i, name] of names.entries()) {
+    const t = new Date(Date.now() + i).toISOString();
+    await saveEntry({id: `${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 6)}`, kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
+  }
+  return `Added ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`} to your shopping list.`;
+}
 export async function saveSettings(patch) {
   S.settings = {...S.settings, ...patch};
   await db.setMeta("settings", S.settings);

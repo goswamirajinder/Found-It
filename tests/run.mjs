@@ -78,6 +78,21 @@ t("shopping list", () => {
     ["sabzi mangwani hai", ["Sabzi"]], ["दूध खरीदना है", ["दूध"]], ["Order a new gas cylinder", ["New gas cylinder"]]
   ];
   for (const [s, items] of buys) assert.deepEqual(pick(c(s), ["intent", "items"]), {intent: "buy", items}, s);
+  // Real sentences from the phone's speech service.
+  const real = [
+    ["Mazar se dudh laane Hai Kele laane Hain amrud Jaane Hain", ["Dudh", "Kele", "Amrud"]],
+    ["Mazar se Kele Lani Hai dudh la", ["Kele", "Dudh"]],
+    ["Aata paneer Daliya gobhi", ["Aata", "Paneer", "Daliya", "Gobhi"]],
+    ["bazaar se 2 kg aloo aur 1 kg pyaz lana hai", ["2 kg aloo", "1 kg pyaz"]],
+    ["mujhe dudh aur bread chahiye", ["Dudh", "Bread"]],
+    ["dudh 2 litre bread anda", ["Dudh 2 litre", "Bread", "Anda"]],
+    ["buy brown bread and amul butter", ["Brown bread", "Amul butter"]],
+    ["get milk bread eggs", ["Milk", "Bread", "Eggs"]],
+    ["chai patti aur shimla mirch le aana", ["Chai patti", "Shimla mirch"]]
+  ];
+  for (const [s, items] of real) assert.deepEqual(pick(c(s), ["intent", "items"]), {intent: "buy", items}, s);
+  assert.equal(c("Paneer").intent, "note");
+  assert.equal(c("My passport, bedroom almira, first drawer left side").intent, "keep");
   assert.equal(c("Remind me to buy a gift on 20 November").intent, "note");
   assert.equal(c("Saw a nice lamp in the market").intent, "note");
   assert.notEqual(c("Get the passport out of the locker").intent, "buy");
