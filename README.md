@@ -8,6 +8,9 @@ A phone app for remembering where you put things, and anything else worth rememb
 - **Search** forgives typos and knows Hindi words: “lihgts”, “almari”, “chabi”, “passport kahan hai”.
 - **Coming up**: things tagged Diwali, Holi, Christmas, winter, summer or monsoon show on the home screen before you need them.
 - **Taken out, then put back**: things you take out stay on the home screen until you record where they went back.
+- **Shopping list**: things to buy stay at the top of the home screen until you tick them off; then delete them, or tap Put away to record where they went.
+- **Box labels**: print a QR label for a trunk, box or drawer (Settings › Box labels). Scanning it with the phone's camera shows what's inside, and lets you put something in without saying where.
+- **Date kept**: every entry has the date you kept it, which you can set to an earlier day.
 - **Phone reminders** for festivals, expiry dates, chosen dates and things not put back (Android, once installed).
 - Works **offline** and stores everything **only on the phone**. Back it up from Settings.
 
@@ -24,6 +27,8 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “I took out the extension board” | Marks it as taken out |
 | “I put the extension board back” | Puts it back in its usual place |
 | “I put the lights back in the loft” | Puts it back somewhere new and keeps the old place in its history |
+| “Buy AA batteries, bulbs and atta” / “Doodh aur bread lana hai” | Adds them to the shopping list |
+| “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
 
 Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings.
 
@@ -66,6 +71,7 @@ Entries, photos and places are stored in the browser's storage on the phone and 
 npm start        # serves the folder on http://localhost:5179
 npm test         # parser, search, dates and reminder tests
 npm run icons    # redraws the PNG icons
+npm run label -- B001   # makes labels/box-B001.svg (to print) and .png for one box
 ```
 
 - `js/parse.js`: sentence → item, room, spot; spoken command → intent; spoken dates
@@ -73,6 +79,7 @@ npm run icons    # redraws the PNG icons
 - `js/store.js`: IndexedDB storage, backup and restore
 - `js/device.js`: speech recognition, speech output and location
 - `js/reminders.js`: works out which notifications are due; `sw.js` shows them and keeps the app working offline
+- `js/qr.js`: QR code generator for box labels (checked against an independent decoder); `js/boxes.js`: the box sheet
 - `js/state.js`, `js/views.js`, `js/sheets.js`, `js/voice-ui.js`, `js/app.js`: the screens
 
 When you change any file, bump `CACHE` in `sw.js` so installed phones pick up the new version.

@@ -15,7 +15,18 @@ export const fillSpots = (roomSel, dlSel) => { $(dlSel).innerHTML = spotsIn($(ro
 export const fillRoomsDl = () => { $("#dl-rooms").innerHTML = roomChoices().map(n => `<option value="${esc(n)}"></option>`).join(""); };
 
 /* ---------- save something ---------- */
-const F = {mode: "item", editing: null, blob: null, previewUrl: "", removePhoto: false, touched: {}, cat: "other", occ: null, catTouched: false, occTouched: false, pos: null, posP: null};
+const F = {mode: "item", editing: null, blob: null, previewUrl: "", removePhoto: false, touched: {}, cat: "other", occ: null, catTouched: false, occTouched: false, pos: null, posP: null, boxId: null, fromBuy: null};
+const currentBox = () => (F.mode === "item" && F.boxId ? S.items.find(i => i.kind === "box" && i.code === F.boxId) || null : null);
+// Putting something into a box: the box says where it is, so the room and spot fields step aside.
+function syncBox() {
+  const box = currentBox();
+  $("#box-bar").hidden = !box;
+  if (F.mode === "item") $("#where-field").hidden = !!box;
+  if (box) {
+    $("#box-bar-name").textContent = `${box.code}: ${box.name}`;
+    $("#box-bar-where").innerHTML = `${esc(box.room || "Somewhere")}${box.spot ? `<i>›</i>${esc(box.spot)}` : ""}`;
+  }
+}
 
 function setMode(mode) {
   F.mode = mode;
@@ -24,7 +35,9 @@ function setMode(mode) {
   document.querySelectorAll("#cap-dlg [data-for]").forEach(el => { el.hidden = el.dataset.for !== mode; });
   $("#cap-title").textContent = F.editing ? "Edit" : mode === "item" ? "Put something away" : "Note anything";
   $("#photo-hint").textContent = mode === "item" ? "A picture of the shelf or box beats any description." : "Something you saw, a label, a visiting card, a parking sign.";
+  $("#date-lbl").textContent = mode === "item" ? "Date you kept it" : "Date";
   syncRemind();
+  syncBox();
 }
 function syncRemind() { $("#remind-field").hidden = !(F.mode === "note" || F.occ === "date"); }
 function drawOccChips() {
@@ -65,7 +78,8 @@ function startLocate() {
 }
 
 export function openCapture(mode = "item", pre = {}, editing = null) {
-  Object.assign(F, {editing, blob: null, removePhoto: false, touched: {}, catTouched: !!editing, occTouched: !!editing, pos: null, posP: null});
+  Object.assign(F, {editing, blob: null, removePhoto: false, touched: {}, catTouched: !!editing, occTouched: !!editing, pos: null, posP: null,
+    boxId: pre.boxId || (editing && editing.boxId) || null, fromBuy: pre.fromBuy || null});
   if (F.previewUrl) { URL.revokeObjectURL(F.previewUrl); F.previewUrl = ""; }
   const e = editing || {};
   $("#cap-mode").hidden = !!editing;
@@ -89,7 +103,8 @@ export function openCapture(mode = "item", pre = {}, editing = null) {
   drawOccChips();
   drawCatChips();
   setMode(editing ? editing.kind : mode);
-  $("#stamp-time").textContent = editing ? `Saved ${fmtDateTime(e.createdAt)}` : `Will be saved with ${fmtDateTime(new Date().toISOString())}`;
+  $("#f-date").max = today();
+  $("#f-date").value = e.keptAt ? ymd(new Date(e.keptAt)) : today();
   const loc = $("#f-loc");
   loc.closest(".toggle").hidden = !canLocate;
   loc.checked = !editing && canLocate && S.settings.autoLocation;
@@ -138,13 +153,18 @@ async function saveCapture(ev) {
     if (!text && !F.blob && !(ed && ed.photoId && !F.removePhoto)) return showErr("#cap-err", "Write something or add a photo.", "#f-text");
     body = {kind: "note", name: text || "Photo", remindOn: isYmd($("#f-remind").value) ? $("#f-remind").value : null};
   } else {
-    const name = $("#f-name").value.trim(), room = cap($("#f-room").value.trim()), spot = cap($("#f-spot").value.trim());
+    const box = currentBox(), name = $("#f-name").value.trim();
+    const room = box ? box.room : cap($("#f-room").value.trim());
+    const spot = box ? (box.spot ? `${box.name}, ${box.spot}` : box.name) : cap($("#f-spot").value.trim());
     if (!name) return showErr("#cap-err", "Add what it is, like “Diwali lights”.", "#f-name");
     if (!room && !spot) return showErr("#cap-err", "Add where you're putting it: a room, a spot, or both.", "#f-room");
     if (F.occ === "date" && !isYmd($("#f-remind").value)) return showErr("#cap-err", "Pick the date you'll want it.", "#f-remind");
-    body = {kind: "item", name, room, spot, category: F.cat, occasion: F.occ || null, remindOn: F.occ === "date" ? $("#f-remind").value : null,
+    body = {kind: "item", name, room, spot, boxId: box ? box.code : null, category: F.cat, occasion: F.occ || null, remindOn: F.occ === "date" ? $("#f-remind").value : null,
       expiry: isYmd($("#f-expiry").value) ? $("#f-expiry").value : null, notes: $("#f-notes").value.trim()};
   }
+  // The date the person picked; today keeps the real time, an earlier day is stored at midday.
+  const day = isYmd($("#f-date").value) && $("#f-date").value <= today() ? $("#f-date").value : today();
+  body.keptAt = ed && ed.keptAt && ymd(new Date(ed.keptAt)) === day ? ed.keptAt : day === today() ? now : new Date(`${day}T12:00:00`).toISOString();
   $("#cap-err").hidden = true;
   btn.disabled = true;
   btn.textContent = "Saving…";
@@ -158,9 +178,11 @@ async function saveCapture(ev) {
       toast("Saved");
     } else {
       await saveEntry({id: newId(), status: "kept", history: [], photoId: null, keptAt: now, createdAt: now, updatedAt: now, ...body});
+      if (F.fromBuy) { const b = S.items.find(i => i.id === F.fromBuy); if (b) await removeEntry(b); }
       toast(body.kind === "note" ? "Noted" : `Saved: ${body.name} → ${body.room || "Somewhere"}${body.spot ? " › " + body.spot : ""}`);
     }
     $("#cap-dlg").close();
+    if (body.boxId && S.openBox) S.openBox(body.boxId);
   } catch (err) {
     showErr("#cap-err", err && err.name === "QuotaExceededError" ? "This phone is out of space for the app. Delete some photos or entries." : "Couldn't save. Try again.");
   } finally {
@@ -204,23 +226,27 @@ function calLink(it) {
   return `<a class="cal" href="${esc(url)}" target="_blank" rel="noopener">Add a reminder ${esc(label)} to Google Calendar</a>`;
 }
 function drawItem(it) {
-  const note = it.kind === "note", src = photoUrl(it.photoId);
+  const note = it.kind === "note", buy = it.kind === "buy", src = photoUrl(it.photoId);
   $("#item-title").textContent = note ? "Note" : it.name;
-  const facts = [[note ? "Saved" : "Put away", fmtDateTime(note ? it.createdAt : it.keptAt) || "Unknown"]];
+  const day = iso => (iso ? fmtDate(ymd(new Date(iso))) : "Unknown");
+  const facts = [[note ? "Date" : buy ? "Added" : "Kept on", day(it.keptAt)]];
+  if (buy && it.bought) facts.push(["Bought", day(it.boughtAt)]);
   if (it.place) facts.push(["Where you were", placeText(it.place)]);
-  if (it.seenAt) facts.push(["Last seen there", fmtDateTime(it.seenAt)]);
+  if (it.seenAt) facts.push(["Last seen there", day(it.seenAt)]);
   if (!note) facts.push(["Kind", catLabel(it.category)]);
   if (!note && it.occasion && it.occasion !== "date") facts.push(["Needed for", OCCASIONS[it.occasion].label]);
   if (it.remindOn) facts.push(["Reminder", fmtDate(it.remindOn)]);
   if (it.expiry) facts.push(["Expires", fmtDate(it.expiry)]);
   if (it.notes) facts.push(["Notes", it.notes]);
   const hist = (it.history || []).filter(h => h.room || h.spot);
-  const acts = note ? [["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
+  const acts = buy ? (it.bought ? [["buy-put", "Put it away", "primary"], ["buy-undo", "Not bought yet", ""]] : [["buy-done", "Mark as bought", "primary"]])
+    : note ? [["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
     : it.status === "out" ? [["putback", "Put it back", "primary"], ["edit", "Edit details", ""]]
     : [["seen", "Found it here", "dark"], ["out", "Taking it out", ""], ["moved", "It's somewhere else", ""], ["edit", "Edit details", ""]];
   $("#item-body").innerHTML = `
     ${src ? `<img class="d-photo" src="${esc(src)}" alt="">` : ""}
-    ${note ? `<p class="d-text">${esc(it.name)}</p>` : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
+    ${note ? `<p class="d-text">${esc(it.name)}</p>` : buy ? `<p class="hint">${it.bought ? "Ticked off your shopping list." : "On your shopping list."}</p>` : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
+      ${it.boxId ? `<button class="btn small" type="button" data-box="${esc(it.boxId)}" style="justify-self:start">In box ${esc(it.boxId)}: open it</button>` : ""}
       <button type="button" class="tape big" data-room="${esc(it.room || "Somewhere")}" aria-label="See everything in ${esc(it.room || "this place")}">${esc(it.room || "Somewhere")}${it.spot ? `<i>›</i>${esc(it.spot)}` : ""}</button>
       ${it.status === "out" ? `<span class="pill out" style="justify-self:start">Taken out ${esc(ago(it.outAt))}</span>` : ""}</div>`}
     <div class="actions">${acts.map(([k, l, c]) => `<button class="btn ${c}" type="button" data-act="${k}">${l}</button>`).join("")}</div>
@@ -236,9 +262,13 @@ async function onItemClick(e) {
   if (!b || !it) return;
   const dlg = $("#item-dlg");
   if (b.dataset.room !== undefined) { dlg.close(); S.goRoom(b.dataset.room); return; }
+  if (b.dataset.box) { dlg.close(); S.openBox(b.dataset.box); return; }
   const act = b.dataset.act;
   try {
-    if (act === "seen") { await patchEntry(it.id, {seenAt: new Date().toISOString()}); toast("Noted: still there today."); }
+    if (act === "buy-done") { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); toast(`Ticked off: ${it.name}`); }
+    else if (act === "buy-undo") await patchEntry(it.id, {bought: false, boughtAt: null});
+    else if (act === "buy-put") { dlg.close(); openCapture("item", {name: it.name, fromBuy: it.id}); }
+    else if (act === "seen") { await patchEntry(it.id, {seenAt: new Date().toISOString()}); toast("Noted: still there today."); }
     else if (act === "out") { await patchEntry(it.id, {status: "out", outAt: new Date().toISOString()}); dlg.close(); toast("Marked as taken out. Tap Put back when it goes back."); }
     else if (act === "putback" || act === "moved") { dlg.close(); openMove(it, act); }
     else if (act === "edit") { dlg.close(); openCapture(it.kind, {}, it); }
@@ -308,6 +338,7 @@ export function wireSheets() {
     } catch (err) { showErr("#cap-err", "That photo couldn't be opened. Try another one."); }
   });
   $("#photo-remove").addEventListener("click", () => { F.blob = null; F.removePhoto = true; showPhoto(""); });
+  $("#box-bar-clear").addEventListener("click", () => { F.boxId = null; syncBox(); $("#f-room").focus(); });
   $("#cap-dlg").addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b) return;

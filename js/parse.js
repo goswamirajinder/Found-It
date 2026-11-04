@@ -107,12 +107,27 @@ export function findQuery(text) {
     .trim();
 }
 
-// One sentence in, one intent out: find | keep | note | out | back | none.
+// "atta, rice and dal" -> ["Atta", "Rice", "Dal"]
+export function splitList(s) {
+  return String(s || "").split(/\s*(?:,|;|&|\band\b|\baur\b|\bplus\b)\s*/i)
+    .map(x => x.trim().replace(/^(?:some|a|an|the|more|kuch)\s+/i, "").replace(/[.!]+$/, "")).filter(Boolean).map(cap);
+}
+const BUY_LIST = /^(?:add\s+)?(.+?)\s+(?:to|in|on)\s+(?:the\s+|my\s+)?(?:shopping|grocery|groceries|market|to-buy|to buy)(?:\s+list)?$/i;
+const BUY_LEAD = /^(?:i\s+|we\s+)?(?:need to buy|have to buy|must buy|should buy|to buy|buy|purchase|shopping list|shopping|grocery list|groceries|market list)\b[:,\s-]+(.+)$/i;
+const BUY_HI = /^(?:(?:bazaar|bazar|market|dukaan|dukan)\s+se\s+)?(.+?)\s+(?:lana|lani|lane|laana|laani|kharidna|kharidni|kharidne|le aana|le ana)(?:\s+(?:hai|hain|he))?$/i;
+const BOUGHT = /^(?:i\s+(?:have\s+|just\s+)?|we\s+(?:have\s+)?)?(?:bought|purchased)\s+(?:the\s+)?(.+?)(?:\s+(?:from|at)\s+.+)?$/i;
+const BOUGHT_HI = /^(.+?)\s+(?:le aaya|le aayi|le aaye|le aya|le ayi|kharid liya|kharid li|kharid liye)(?:\s+(?:hai|hain))?$/i;
+
+// One sentence in, one intent out: find | keep | note | out | back | buy | bought | none.
 export function parseCommand(raw, knownRooms = []) {
   const text = String(raw || "").replace(/\s+/g, " ").trim().replace(/^(?:ok(?:ay)?|hey|hi|hello|please|found it)[,.!\s]+/i, "");
   if (!text) return {intent: "none", text};
   let m = text.match(/^(?:note(?: down| that)?|make a note(?: that| of)?|remember(?: that)?|remind me(?: to| that| about)?|idea|reminder|yaad rakhna|yaad rakho)\b[:,\s-]*(.*)$/i);
   if (m && m[1]) return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
+  m = text.match(BUY_LIST) || text.match(BUY_LEAD) || text.match(BUY_HI);
+  if (m && splitList(m[1]).length) return {intent: "buy", items: splitList(m[1]), text};
+  m = text.match(BOUGHT) || text.match(BOUGHT_HI);
+  if (m) return {intent: "bought", query: m[1], text};
   if (FIND_RE.test(text) || FIND_HI.test(text) || /\?$/.test(text)) return {intent: "find", query: findQuery(text), text};
   m = text.match(/^(?:i\s+(?:have\s+|just\s+|am\s+)?)?(?:put|placed|kept|keep|putting)\s+(?:the\s+)?(.+?)\s+back\b(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i)
     || text.match(/^(?:i\s+(?:have\s+)?)?(?:returned|put back|kept back)\s+(?:the\s+)?(.+?)(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i);

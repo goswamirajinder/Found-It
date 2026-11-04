@@ -2,9 +2,9 @@
 import {S, $, saveEntry, patchEntry, knownRooms, bestItem} from "./state.js";
 import {esc, cap, newId, ago, fmtDateTime, fmtDate} from "./data.js";
 import {parseCommand, parseWhen} from "./parse.js";
-import {searchItems, guessCategory, guessOccasion} from "./search.js";
+import {searchItems, rank, guessCategory, guessOccasion} from "./search.js";
 import {canListen, listen, voiceError, speak, stopSpeaking, locate, nearest} from "./device.js";
-import {row, tapeHtml} from "./views.js";
+import {row, tapeHtml, dayOf} from "./views.js";
 import {openCapture, openItem, finishMove} from "./sheets.js";
 
 let rec = null, P = null;
@@ -49,6 +49,8 @@ export function handle(text) {
   if (cmd.intent === "out") return confirmOut(cmd.query);
   if (cmd.intent === "back") return confirmBack(cmd);
   if (cmd.intent === "note") return confirmNote(cmd);
+  if (cmd.intent === "buy") return confirmBuy(cmd.items);
+  if (cmd.intent === "bought") return confirmBought(cmd.query);
   result(`<p class="answer">Say what you put where, ask where something is, or say “note” and anything else.</p>`);
 }
 
@@ -56,9 +58,10 @@ function showFind(q) {
   const res = searchItems(q, S.items).slice(0, 5);
   if (!res.length) { const a = `I couldn't find anything for “${q}”.`; result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
   const top = res[0];
-  const a = top.kind === "note"
-    ? `Your note from ${fmtDateTime(top.createdAt)}: ${top.name}`
-    : `${top.name} is in ${whereText(top)}.${top.status === "out" ? ` It was taken out ${ago(top.outAt)}.` : ""}`;
+  const a = top.kind === "note" ? `Your note from ${dayOf(top.keptAt || top.createdAt)}: ${top.name}`
+    : top.kind === "buy" ? (top.bought ? `You bought ${top.name} on ${dayOf(top.boughtAt)}.` : `${top.name} is on your shopping list.`)
+    : top.kind === "box" ? `Box ${top.code}, ${top.name}, is in ${whereText(top)}.`
+    : `${top.name} is in ${whereText(top)}, kept on ${dayOf(top.keptAt)}.${top.status === "out" ? ` It was taken out ${ago(top.outAt)}.` : ""}`;
   result(`<p class="answer">${esc(a)}</p><div class="list">${res.map(i => row(i)).join("")}</div>`);
   say(a);
 }
@@ -98,6 +101,30 @@ function confirmNote(cmd) {
       return remindOn ? `Noted. I'll remind you on ${fmtDate(remindOn)}.` : "Noted.";
     },
     edit: () => openCapture("note", {text, remindOn})
+  });
+}
+function confirmBuy(names) {
+  pending({
+    html: `Add to your shopping list: <b>${esc(names.join(", "))}</b>`, label: "Add",
+    run: async () => {
+      for (const [i, name] of names.entries()) {
+        const t = new Date(Date.now() + i).toISOString();
+        await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
+      }
+      return `Added ${names.join(", ")} to your shopping list.`;
+    },
+    edit: () => { $("#voice-dlg").close(); const i = $("#buy-input"); if (i) { i.value = names.join(", "); i.focus(); } }
+  });
+}
+function confirmBought(q) {
+  const open = S.items.filter(i => i.kind === "buy" && !i.bought);
+  const r = rank(q, open);
+  const it = r.length && r[0].hit === r[0].of ? r[0].it : null;
+  if (!it) { const a = `“${q}” isn't on your shopping list.`; result(`<p class="answer">${esc(a)}</p>`); say(a); return; }
+  pending({
+    html: `Tick off <b>${esc(it.name)}</b> as bought?`, label: "Yes, bought",
+    run: async () => { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); return `Ticked off ${it.name}. When you put it away, tap Put away next to it.`; },
+    edit: () => openItem(it.id)
   });
 }
 function pickList(q, msg) {
@@ -151,6 +178,7 @@ export function wireVoice() {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.open) { $("#voice-dlg").close(); openItem(b.dataset.open); return; }
+    if (b.dataset.box) { $("#voice-dlg").close(); S.openBox(b.dataset.box); return; }
     const v = b.dataset.v;
     if (v === "save") commit();
     else if (v === "cancel") { clearPending(); result(`<p class="answer">Cancelled. Nothing was saved.</p>`); }

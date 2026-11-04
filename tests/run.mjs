@@ -4,6 +4,7 @@ import {parseLine, parseCommand, parseWhen} from "../js/parse.js";
 import {searchItems, guessCategory, guessOccasion} from "../js/search.js";
 import {nextDate, whenText, daysBetween} from "../js/data.js";
 import {schedule} from "../js/reminders.js";
+import {qrMatrix} from "../js/qr.js";
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
@@ -47,6 +48,23 @@ t("spoken commands", () => {
   assert.equal(c("extension board wapas rakh diya").intent, "back");
   assert.equal(c("lights nikal liya").intent, "out");
   assert.equal(c("remind me to renew the car insurance").remind, true);
+});
+
+t("shopping list", () => {
+  const c = s => parseCommand(s);
+  assert.deepEqual(pick(c("Add milk and eggs to the shopping list"), ["intent", "items"]), {intent: "buy", items: ["Milk", "Eggs"]});
+  assert.deepEqual(c("buy AA batteries, bulbs and atta").items, ["AA batteries", "Bulbs", "Atta"]);
+  assert.deepEqual(c("bazaar se doodh aur bread lana hai").items, ["Doodh", "Bread"]);
+  assert.deepEqual(c("need to buy a new pressure cooker").items, ["New pressure cooker"]);
+  assert.deepEqual(pick(c("I bought the batteries"), ["intent", "query"]), {intent: "bought", query: "batteries"});
+  assert.deepEqual(pick(c("doodh le aaya"), ["intent", "query"]), {intent: "bought", query: "doodh"});
+  assert.equal(c("I put the milk in the fridge").intent, "keep");
+});
+
+t("box labels decode to the same text", () => {
+  const {version, size} = qrMatrix("https://goswamirajinder.github.io/Found-It/?box=B001");
+  assert.equal(version, 4);
+  assert.equal(size, 33);
 });
 
 t("dates said out loud", () => {

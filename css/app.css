@@ -196,6 +196,27 @@ details.more summary,details.examples summary{cursor:pointer;font:700 15px var(-
 @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 .answer{margin:0;font-size:17px;line-height:1.45}
 
+/* shopping list */
+.buy{display:grid;gap:10px;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.buy-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.buy-list{display:grid}
+.buy-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.buy-row:first-child{border-top:0}
+.tick{width:30px;height:30px;border-radius:50%;border:2px solid var(--muted);background:transparent;display:grid;place-items:center;padding:0}
+.tick[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--card)}
+.tick .ic{width:18px;height:18px}
+.buy-name{font-size:17px;overflow-wrap:anywhere}
+.buy-row.done .buy-name{text-decoration:line-through;color:var(--muted)}
+.buy-acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.buy-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* boxes */
+.boxbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:14px;background:var(--accent-soft)}
+.label{display:grid;justify-items:center;gap:8px;padding:16px;border-radius:16px;background:#fff;color:#111;border:1px solid var(--line)}
+.label svg{width:min(240px,70vw);height:auto}
+.label b{font:800 20px var(--f-display);letter-spacing:.04em}
+.label span{font-size:13px;color:#333}
+
 /* settings */
 .set-group{display:grid;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}
 .set-group:last-child{border-bottom:0}

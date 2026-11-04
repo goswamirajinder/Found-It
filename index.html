@@ -86,7 +86,11 @@
         <label for="f-name">What is it?</label>
         <input class="input" id="f-name" maxlength="120" autocomplete="off" placeholder="Diwali lights (2 sets)">
       </div>
-      <div class="field" data-for="item">
+      <div class="boxbar" id="box-bar" hidden>
+        <span>Going into box <b id="box-bar-name"></b></span><span class="tape" id="box-bar-where"></span>
+        <button type="button" class="btn small ghost" id="box-bar-clear">Not in this box</button>
+      </div>
+      <div class="field" data-for="item" id="where-field">
         <span class="lbl">Where?</span>
         <div class="chips" id="room-chips"></div>
         <div class="two">
@@ -117,7 +121,7 @@
       </details>
 
       <div class="stamp">
-        <p class="stamp-time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span id="stamp-time">Saved with today's date and time</span></p>
+        <div class="field"><label for="f-date" id="date-lbl">Date you kept it</label><input class="input" type="date" id="f-date"></div>
         <label class="toggle"><input type="checkbox" id="f-loc"><span>Add where I am right now</span></label>
         <p class="hint" id="loc-status" aria-live="polite"></p>
       </div>
@@ -178,6 +182,11 @@
       </ul>
     </details>
   </div>
+</dialog>
+
+<dialog class="sheet" id="box-dlg" aria-labelledby="box-title">
+  <div class="sh-head"><h2 id="box-title">Box</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+  <div class="sh-body" id="box-body"></div>
 </dialog>
 
 <dialog class="sheet" id="set-dlg" aria-labelledby="set-title">

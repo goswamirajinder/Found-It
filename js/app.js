@@ -1,5 +1,7 @@
 // Starts the app: loads saved data, draws the home screen, and wires the header, dock and settings.
-import {S, $, load, toast, saveEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry} from "./state.js";
+import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry} from "./state.js";
+import {wireBoxes, openBox, newCode} from "./boxes.js";
+import {splitList} from "./parse.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
 import {wireVoice, openVoice} from "./voice-ui.js";
@@ -48,6 +50,10 @@ function drawSettings() {
   <section class="set-group"><h3>Phone reminders</h3>
     <p class="hint" id="s-rem-msg">${esc(remStatus())}</p>
     ${!("Notification" in window) || Notification.permission === "denied" || (S.settings.reminders && Notification.permission === "granted") ? "" : `<button class="btn" type="button" id="s-rem">Turn on reminders</button>`}
+  </section>
+  <section class="set-group"><h3>Box labels</h3>
+    <p class="hint">Stick a QR label on a trunk, box or drawer. Scanning it with the phone's camera opens Found It at that box and shows what's inside.</p>
+    <button class="btn" type="button" id="s-newbox">Make a label for a new box</button>
   </section>
   <section class="set-group"><h3>Backup</h3>
     <p class="hint">Everything is stored only on this phone${S.persisted ? ", and the browser has agreed not to clear it" : ""}. Save a backup now and then and keep it somewhere safe, like Google Drive or your email.</p>
@@ -110,7 +116,8 @@ async function onSettingsClick(e) {
       drawSettings();
       toast(`Saved this spot as ${label}`);
     } catch (err) { m.textContent = locError(err); b.disabled = false; }
-  } else if (b.id === "s-rem") enableReminders();
+  } else if (b.id === "s-newbox") { $("#set-dlg").close(); openBox(newCode()); }
+  else if (b.id === "s-rem") enableReminders();
   else if (b.id === "s-backup") {
     b.disabled = true;
     try { $("#s-backup-msg").textContent = await saveBackup(); } catch (err) { $("#s-backup-msg").textContent = "Couldn't make the backup. Try again."; }
@@ -151,6 +158,7 @@ async function seedExamples() {
 function wire() {
   wireSheets();
   wireVoice();
+  wireBoxes();
   $("#q").addEventListener("input", () => { if (!$("#q").value.trim() && S.view.kind !== "home") S.view = {kind: "home"}; render(); });
   $("#q-clear").addEventListener("click", () => { $("#q").value = ""; render(); $("#q").focus(); });
   $("#search-form").addEventListener("submit", e => { e.preventDefault(); $("#q").blur(); });
@@ -175,6 +183,11 @@ function wire() {
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.open) return openItem(b.dataset.open);
+    if (b.dataset.box) return openBox(b.dataset.box);
+    const buyIt = S.items.find(i => i.id === (b.dataset.buyToggle || b.dataset.buyPut || b.dataset.buyDel));
+    if (buyIt && b.dataset.buyToggle) return patchEntry(buyIt.id, buyIt.bought ? {bought: false, boughtAt: null} : {bought: true, boughtAt: new Date().toISOString()});
+    if (buyIt && b.dataset.buyPut) return openCapture("item", {name: buyIt.name, fromBuy: buyIt.id});
+    if (buyIt && b.dataset.buyDel) { await removeEntry(buyIt); toast(`Deleted ${buyIt.name}`); return; }
     if (b.dataset.room !== undefined) return S.goRoom(b.dataset.room);
     if (b.dataset.putback) { const it = S.items.find(i => i.id === b.dataset.putback); if (it) openMove(it, "putback"); return; }
     if (b.dataset.starter) return openCapture("item", {name: b.dataset.starter});
@@ -183,6 +196,21 @@ function wire() {
     else if (act === "keep" || act === "note") openCapture(act === "keep" ? "item" : "note");
     else if (act === "install" && S.installEvent) { S.installEvent.prompt(); await S.installEvent.userChoice.catch(() => null); S.installEvent = null; render(); }
     else if (act === "clear-examples") { for (const it of S.items.filter(i => i.example)) await removeEntry(it); toast("Examples cleared"); }
+    else if (act === "clear-bought") { for (const it of S.items.filter(i => i.kind === "buy" && i.bought)) await removeEntry(it); toast("Bought things deleted"); }
+  });
+  // Shopping list: several things at once with commas or "and"; the box stays focused for the next one.
+  $("#main").addEventListener("submit", async e => {
+    if (e.target.id !== "buy-form") return;
+    e.preventDefault();
+    const names = splitList($("#buy-input").value);
+    if (!names.length) { $("#buy-input").focus(); return; }
+    // A millisecond apart, so the list keeps the order they were typed in.
+    for (const [i, name] of names.entries()) {
+      const t = new Date(Date.now() + i).toISOString();
+      await saveEntry({id: newId(), kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
+    }
+    const input = $("#buy-input");
+    if (input) input.focus();
   });
   window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); S.installEvent = e; render(); });
   window.addEventListener("appinstalled", () => { S.installEvent = null; render(); toast("Installed. Open Found It from your home screen."); });
@@ -190,13 +218,14 @@ function wire() {
 function handleLaunch() {
   const p = new URLSearchParams(location.search);
   const shared = [p.get("share_title"), p.get("share_text"), p.get("share_url")].filter(Boolean).join("\n");
-  const action = p.get("action"), open = p.get("open");
+  const action = p.get("action"), open = p.get("open"), box = p.get("box");
   if (shared) openCapture("note", {text: shared});
+  else if (box) openBox(box);
   else if (open) openItem(open);
   else if (action === "note") openCapture("note");
   else if (action === "keep") openCapture("item");
   else if (action === "voice") openVoice(true);
-  if (shared || action || open) history.replaceState(null, "", location.pathname);
+  if (shared || action || open || box) history.replaceState(null, "", location.pathname);
 }
 async function init() {
   wire();
