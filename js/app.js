@@ -203,6 +203,14 @@ function wire() {
     else if (act === "read-buy") readListAloud();
     else if (act === "buy-mic") listenForBuy(b);
     else if (act === "clear-bought") { for (const it of S.items.filter(i => i.kind === "buy" && i.bought)) await removeEntry(it); toast("Bought things deleted"); }
+    // Delete all asks once, inside the list, before clearing it.
+    else if (act === "clear-buy" || act === "clear-buy-no") { S.confirmClearBuy = act === "clear-buy"; render(); }
+    else if (act === "clear-buy-yes") {
+      S.confirmClearBuy = false;
+      for (const it of S.items.filter(i => i.kind === "buy")) await removeEntry(it);
+      render();
+      toast("Shopping list cleared");
+    }
   });
   // Shopping list: several things at once with commas or "and"; the box stays focused for the next one.
   $("#main").addEventListener("submit", async e => {
