@@ -62,8 +62,8 @@ function buySection() {
     ${all.length ? `<div class="buy-list">${[...open, ...done].map(line).join("")}</div>`
       : `<p class="hint">Things to get from the market stay here until you tick them off. Type several at once with commas${canListen ? ", or tap the mic here and just say them: “milk, eggs and bread”" : ""}.</p>`}
     ${!all.length ? "" : S.confirmClearBuy
-      ? `<div class="confirm"><p style="margin:0">Delete all ${all.length} things on the shopping list? This can't be undone.</p>
-          <div class="row"><button class="btn dark" type="button" data-act="clear-buy-yes">Delete all</button><button class="btn" type="button" data-act="clear-buy-no">Keep them</button></div></div>`
+      ? `<div class="confirm"><p style="margin:0">${all.length === 1 ? "Delete the 1 thing" : `Delete all ${all.length} things`} on the shopping list? This can't be undone.</p>
+          <div class="row"><button class="btn dark" type="button" data-act="clear-buy-yes">Delete ${all.length === 1 ? "it" : "all"}</button><button class="btn" type="button" data-act="clear-buy-no">Keep ${all.length === 1 ? "it" : "them"}</button></div></div>`
       : `<div class="buy-foot"><span class="hint">${done.length ? `Ticked off: ${done.length}` : `${all.length} on the list`}</span>
           <span class="buy-acts">${done.length ? `<button class="btn small ghost danger" type="button" data-act="clear-bought">Delete bought</button>` : ""}<button class="btn small ghost danger" type="button" data-act="clear-buy">Delete all</button></span></div>`}
   </div>`, open.length ? `<button class="link" type="button" data-act="read-buy">Read aloud</button>` : "");
