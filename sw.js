@@ -5,7 +5,8 @@ const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "js/ap
   "js/store.js", "js/state.js", "js/device.js", "js/reminders.js", "js/views.js", "js/sheets.js", "js/voice-ui.js", "js/qr.js", "js/boxes.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
-self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+// "reload" skips the browser's HTTP cache (GitHub Pages keeps files 10 minutes), so a new version never caches old files.
+self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: "reload"})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("found-it") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
@@ -20,7 +21,7 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const hit = await cache.match(nav ? "./" : req, {ignoreSearch: nav});
-    const net = fetch(req).then(r => {
+    const net = fetch(nav ? req.url : req, {cache: "no-cache"}).then(r => {
       if (r && (r.ok || r.type === "opaque")) cache.put(nav ? "./" : req, r.clone());
       return r;
     }).catch(() => null);
