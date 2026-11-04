@@ -40,14 +40,19 @@ export async function removeEntry(it) {
   S.items = S.items.filter(x => x.id !== it.id);
   changed();
 }
-// Adds things to the shopping list, a millisecond apart so they keep the order they were said in.
-export async function addBuys(names) {
-  for (const [i, name] of names.entries()) {
+export const joinNames = names => (names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+// Adds things to the shopping list or the to-do list, a millisecond apart so they keep the order they were said in.
+// Each thing is a name, or {name, remindOn} for a job with a day.
+export async function addToList(kind, things) {
+  const list = things.map(x => (typeof x === "string" ? {name: x, remindOn: null} : x));
+  for (const [i, x] of list.entries()) {
     const t = new Date(Date.now() + i).toISOString();
-    await saveEntry({id: `${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 6)}`, kind: "buy", name, bought: false, keptAt: t, createdAt: t, updatedAt: t});
+    await saveEntry({id: `${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 6)}`, kind, name: x.name, remindOn: x.remindOn || null,
+      bought: false, keptAt: t, createdAt: t, updatedAt: t});
   }
-  return `Added ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`} to your shopping list.`;
+  return `Added ${joinNames(list.map(x => x.name))} to your ${kind === "todo" ? "to-do list" : "shopping list"}.`;
 }
+export const addBuys = names => addToList("buy", names);
 export async function saveSettings(patch) {
   S.settings = {...S.settings, ...patch};
   await db.setMeta("settings", S.settings);

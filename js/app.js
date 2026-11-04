@@ -1,10 +1,10 @@
 // Starts the app: loads saved data, draws the home screen, and wires the header, dock and settings.
-import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addBuys} from "./state.js";
+import {S, $, load, toast, saveEntry, patchEntry, saveSettings, savePlace, removePlace, reloadAll, removeEntry, addToList} from "./state.js";
 import {wireBoxes, openBox, newCode} from "./boxes.js";
-import {thingsToBuy} from "./voice-ui.js";
+import {thingsToBuy, thingsToDo} from "./voice-ui.js";
 import {viewHome, viewSearch, viewRoom, viewNotes} from "./views.js";
 import {wireSheets, openCapture, openItem, openMove, refreshOpenItem} from "./sheets.js";
-import {wireVoice, openVoice, readListAloud, listenForBuy} from "./voice-ui.js";
+import {wireVoice, openVoice, readListAloud, listenForList} from "./voice-ui.js";
 import {exportAll, importAll, wipeAll, getMeta, setMeta} from "./store.js";
 import {esc, newId, today, addDays} from "./data.js";
 import {canListen, canLocate, locate, locError, speak} from "./device.js";
@@ -188,10 +188,11 @@ function wire() {
     if (!b) return;
     if (b.dataset.open) return openItem(b.dataset.open);
     if (b.dataset.box) return openBox(b.dataset.box);
-    const buyIt = S.items.find(i => i.id === (b.dataset.buyToggle || b.dataset.buyPut || b.dataset.buyDel));
-    if (buyIt && b.dataset.buyToggle) return patchEntry(buyIt.id, buyIt.bought ? {bought: false, boughtAt: null} : {bought: true, boughtAt: new Date().toISOString()});
-    if (buyIt && b.dataset.buyPut) return openCapture("item", {name: buyIt.name, replaces: buyIt.id});
-    if (buyIt && b.dataset.buyDel) { await removeEntry(buyIt); toast(`Deleted ${buyIt.name}`); return; }
+    // Shopping and to-do lines: tick, put away (shopping only) or delete.
+    const line = S.items.find(i => i.id === (b.dataset.tick || b.dataset.put || b.dataset.del));
+    if (line && b.dataset.tick) return patchEntry(line.id, line.bought ? {bought: false, boughtAt: null} : {bought: true, boughtAt: new Date().toISOString()});
+    if (line && b.dataset.put) return openCapture("item", {name: line.name, replaces: line.id});
+    if (line && b.dataset.del) { await removeEntry(line); toast(`Deleted ${line.name}`); return; }
     if (b.dataset.room !== undefined) return S.goRoom(b.dataset.room);
     if (b.dataset.putback) { const it = S.items.find(i => i.id === b.dataset.putback); if (it) openMove(it, "putback"); return; }
     if (b.dataset.starter) return openCapture("item", {name: b.dataset.starter});
@@ -200,27 +201,33 @@ function wire() {
     else if (act === "keep" || act === "note") openCapture(act === "keep" ? "item" : "note");
     else if (act === "install" && S.installEvent) { S.installEvent.prompt(); await S.installEvent.userChoice.catch(() => null); S.installEvent = null; render(); }
     else if (act === "clear-examples") { for (const it of S.items.filter(i => i.example)) await removeEntry(it); toast("Examples cleared"); }
-    else if (act === "read-buy") readListAloud();
-    else if (act === "buy-mic") listenForBuy(b);
-    else if (act === "clear-bought") { for (const it of S.items.filter(i => i.kind === "buy" && i.bought)) await removeEntry(it); toast("Bought things deleted"); }
+    const kind = b.dataset.list;
+    if (act === "read-list") readListAloud(kind);
+    else if (act === "list-mic") listenForList(kind, b);
+    else if (act === "clear-done") {
+      for (const it of S.items.filter(i => i.kind === kind && i.bought)) await removeEntry(it);
+      toast(kind === "todo" ? "Done jobs deleted" : "Bought things deleted");
+    }
     // Delete all asks once, inside the list, before clearing it.
-    else if (act === "clear-buy" || act === "clear-buy-no") { S.confirmClearBuy = act === "clear-buy"; render(); }
-    else if (act === "clear-buy-yes") {
-      S.confirmClearBuy = false;
-      for (const it of S.items.filter(i => i.kind === "buy")) await removeEntry(it);
+    else if (act === "clear-list" || act === "clear-list-no") { S.confirmClear = {...S.confirmClear, [kind]: act === "clear-list"}; render(); }
+    else if (act === "clear-list-yes") {
+      S.confirmClear = {...S.confirmClear, [kind]: false};
+      for (const it of S.items.filter(i => i.kind === kind)) await removeEntry(it);
       render();
-      toast("Shopping list cleared");
+      toast(kind === "todo" ? "To-do list cleared" : "Shopping list cleared");
     }
   });
-  // Shopping list: several things at once with commas or "and"; the box stays focused for the next one.
+  // Both lists: several at once with commas; the box stays focused for the next one.
   $("#main").addEventListener("submit", async e => {
-    if (e.target.id !== "buy-form") return;
+    const form = e.target.closest(".list-add");
+    if (!form) return;
     e.preventDefault();
-    const names = thingsToBuy($("#buy-input").value);
-    if (!names.length) { $("#buy-input").focus(); return; }
-    await addBuys(names);
-    const input = $("#buy-input");
-    if (input) input.focus();
+    const kind = form.dataset.list, input = $(`#${kind}-input`);
+    const things = kind === "todo" ? thingsToDo(input.value) : thingsToBuy(input.value);
+    if (!things.length) { input.focus(); return; }
+    await addToList(kind, things);
+    const again = $(`#${kind}-input`);
+    if (again) again.focus();
   });
   window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); S.installEvent = e; render(); });
   window.addEventListener("appinstalled", () => { S.installEvent = null; render(); toast("Installed. Open Found It from your home screen."); });

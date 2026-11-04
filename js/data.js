@@ -47,7 +47,7 @@ export const SYN = [
 // Words a search or a spoken question carries that say nothing about the thing itself (English and Hinglish).
 export const STOP = new Set(("a an the my our your his her their of for to in on at is are was were where did do does i we you me it its kept keep put placed place " +
   "find found search look looking whats what which some any all with and or there here have has had been be can could should would please tell show " +
-  "mera meri mere kahan kaha kahaan kidhar hai hain rakha rakhi rakhe tha thi the gaya gayi maine humne " +
+  "ko ka ki ke se ne mera meri mere kahan kaha kahaan kidhar hai hain rakha rakhi rakhe tha thi the gaya gayi maine humne " +
   "मेरा मेरी मेरे कहाँ कहां किधर है हैं रखा रखी रखे था थी").split(" "));
 
 // Room words the one-line parser recognises; rank 1 wins over 2 and 3 (a loft is usually inside a named room).
@@ -77,6 +77,7 @@ const PATHS = {
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   cart: '<circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/><path d="M3 4h2.2l2.3 11h11l2-8H6.3"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  todo: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/>',
   qr: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>'
 };
 export const icon = (c, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[c] || PATHS.other}</svg>`;

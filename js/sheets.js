@@ -1,8 +1,8 @@
 // The bottom sheets: save something (put away or note), one entry up close, and moved / put back.
-import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addBuys} from "./state.js";
+import {S, $, toast, showErr, saveEntry, patchEntry, removeEntry, knownRooms, roomChoices, spotsIn, addToList} from "./state.js";
 import {OCCASIONS, CATS, catLabel, esc, cap, isYmd, newId, nextDate, fmtDate, fmtDateTime, ymd, addDays, daysBetween, today, ago} from "./data.js";
 import {guessCategory, guessOccasion} from "./search.js";
-import {parseLine, buyItems, splitItems} from "./parse.js";
+import {parseLine, buyItems, splitItems, todoItems} from "./parse.js";
 import {savePhoto, deletePhoto, photoUrl} from "./store.js";
 import {canLocate, locate, nearest, mapsUrl, placeText, locError} from "./device.js";
 
@@ -227,26 +227,28 @@ function calLink(it) {
   return `<a class="cal" href="${esc(url)}" target="_blank" rel="noopener">Add a reminder ${esc(label)} to Google Calendar</a>`;
 }
 function drawItem(it) {
-  const note = it.kind === "note", buy = it.kind === "buy", src = photoUrl(it.photoId);
+  // Shopping and to-do lines share one layout; `buy` covers both, `todo` picks the words.
+  const note = it.kind === "note", todo = it.kind === "todo", buy = it.kind === "buy" || todo, src = photoUrl(it.photoId);
   $("#item-title").textContent = note ? "Note" : it.name;
   const day = iso => (iso ? fmtDate(ymd(new Date(iso))) : "Unknown");
   const facts = [[note ? "Date" : buy ? "Added" : "Kept on", day(it.keptAt)]];
-  if (buy && it.bought) facts.push(["Bought", day(it.boughtAt)]);
+  if (buy && it.bought) facts.push([todo ? "Done" : "Bought", day(it.boughtAt)]);
   if (it.place) facts.push(["Where you were", placeText(it.place)]);
   if (it.seenAt) facts.push(["Last seen there", day(it.seenAt)]);
-  if (!note) facts.push(["Kind", catLabel(it.category)]);
+  if (!note && !buy) facts.push(["Kind", catLabel(it.category)]);
   if (!note && it.occasion && it.occasion !== "date") facts.push(["Needed for", OCCASIONS[it.occasion].label]);
   if (it.remindOn) facts.push(["Reminder", fmtDate(it.remindOn)]);
   if (it.expiry) facts.push(["Expires", fmtDate(it.expiry)]);
   if (it.notes) facts.push(["Notes", it.notes]);
   const hist = (it.history || []).filter(h => h.room || h.spot);
-  const acts = buy ? (it.bought ? [["buy-put", "Put it away", "primary"], ["buy-undo", "Not bought yet", ""]] : [["buy-done", "Mark as bought", "primary"]])
-    : note ? [["to-buy", "Move to To buy", "dark"], ["to-item", "Turn into Put away", ""], ["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
+  const acts = todo ? (it.bought ? [["buy-undo", "Not done yet", ""]] : [["buy-done", "Mark as done", "primary"]])
+    : buy ? (it.bought ? [["buy-put", "Put it away", "primary"], ["buy-undo", "Not bought yet", ""]] : [["buy-done", "Mark as bought", "primary"]])
+    : note ? [["to-buy", "Move to To buy", "dark"], ["to-todo", "Move to To do", "dark"], ["to-item", "Turn into Put away", ""], ["edit", "Edit", ""], ...(navigator.share ? [["share", "Share", ""]] : [])]
     : it.status === "out" ? [["putback", "Put it back", "primary"], ["edit", "Edit details", ""]]
     : [["seen", "Found it here", "dark"], ["out", "Taking it out", ""], ["moved", "It's somewhere else", ""], ["edit", "Edit details", ""]];
   $("#item-body").innerHTML = `
     ${src ? `<img class="d-photo" src="${esc(src)}" alt="">` : ""}
-    ${note ? `<p class="d-text">${esc(it.name)}</p>` : buy ? `<p class="hint">${it.bought ? "Ticked off your shopping list." : "On your shopping list."}</p>` : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
+    ${note ? `<p class="d-text">${esc(it.name)}</p>` : buy ? `<p class="hint">${it.bought ? "Ticked off" : "On"} your ${todo ? "to-do list" : "shopping list"}.</p>` : `<div class="d-where"><span class="k">${it.status === "out" ? "Usually kept in" : "Kept in"}</span>
       ${it.boxId ? `<button class="btn small" type="button" data-box="${esc(it.boxId)}" style="justify-self:start">In box ${esc(it.boxId)}: open it</button>` : ""}
       <button type="button" class="tape big" data-room="${esc(it.room || "Somewhere")}" aria-label="See everything in ${esc(it.room || "this place")}">${esc(it.room || "Somewhere")}${it.spot ? `<i>›</i>${esc(it.spot)}` : ""}</button>
       ${it.status === "out" ? `<span class="pill out" style="justify-self:start">Taken out ${esc(ago(it.outAt))}</span>` : ""}</div>`}
@@ -269,9 +271,10 @@ async function onItemClick(e) {
     if (act === "buy-done") { await patchEntry(it.id, {bought: true, boughtAt: new Date().toISOString()}); toast(`Ticked off: ${it.name}`); }
     else if (act === "buy-undo") await patchEntry(it.id, {bought: false, boughtAt: null});
     else if (act === "buy-put") { dlg.close(); openCapture("item", {name: it.name, replaces: it.id}); }
-    // A note that was really a shopping list, or really "where I put something".
-    else if (act === "to-buy") {
-      const t = it.name.replace(/[\s.!?।]+$/, ""), msg = await addBuys(buyItems(t) || splitItems(t));
+    // A note that was really a shopping list, a job to do, or "where I put something".
+    else if (act === "to-buy" || act === "to-todo") {
+      const t = it.name.replace(/[\s.!?।]+$/, "");
+      const msg = act === "to-buy" ? await addToList("buy", buyItems(t) || splitItems(t)) : await addToList("todo", todoItems(t, true) || [t]);
       await removeEntry(it);
       dlg.close();
       toast(msg);

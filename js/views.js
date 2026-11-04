@@ -32,9 +32,10 @@ export function row(it, o = {}) {
     return `<button class="item" type="button" data-box="${esc(it.code)}">${thumb("qr")}<span class="body"><span class="name">${esc(it.name)}</span>${tapeHtml(it)}
       <span class="meta"><span class="pill ex">Box ${esc(it.code)}</span><span>${plural(inBox(it.code).length, "thing")} inside</span></span></span></button>`;
   }
-  if (it.kind === "buy") {
-    return `<button class="item" type="button" data-open="${esc(it.id)}">${thumb("cart")}<span class="body"><span class="name">${esc(it.name)}</span>
-      <span class="meta"><span class="pill ex">${it.bought ? `Bought ${esc(shortDate(it.boughtAt))}` : "To buy"}</span><span>Added ${esc(dayOf(it.keptAt))}</span></span></span></button>`;
+  if (it.kind === "buy" || it.kind === "todo") {
+    const L = LISTS[it.kind];
+    return `<button class="item" type="button" data-open="${esc(it.id)}">${thumb(L.icon)}<span class="body"><span class="name">${esc(it.name)}</span>
+      <span class="meta"><span class="pill ex">${it.bought ? `${L.doneWord} ${esc(shortDate(it.boughtAt))}` : L.title}</span>${it.bought ? "" : pills(it)}<span>Added ${esc(dayOf(it.keptAt))}</span></span></span></button>`;
   }
   if (it.kind === "note") {
     return `<button class="item note" type="button" data-open="${esc(it.id)}">${thumb("note")}<span class="body"><span class="name">${esc(it.name)}</span>
@@ -46,27 +47,42 @@ export function row(it, o = {}) {
 const list = arr => `<div class="list">${arr.map(i => row(i)).join("")}</div>`;
 const byNewest = (a, b) => String(b.keptAt || b.createdAt).localeCompare(String(a.keptAt || a.createdAt));
 
-function buySection() {
-  const all = S.items.filter(i => i.kind === "buy");
-  const open = all.filter(i => !i.bought).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-  const done = all.filter(i => i.bought).sort((a, b) => String(b.boughtAt).localeCompare(String(a.boughtAt)));
+// The two tick-off lists share one design; only the words differ. (A ticked item keeps `bought: true` in both.)
+export const LISTS = {
+  buy: {title: "To buy", icon: "cart", listName: "shopping list", ph: "Add things to buy, e.g. batteries, atta", doneWord: "Bought", tickOn: "Mark as bought", tickOff: "Mark as not bought",
+    clearDone: "Delete bought", empty: "Things to get from the market stay here until you tick them off. Type several at once with commas", sayEg: "“milk, eggs and bread”"},
+  todo: {title: "To do", icon: "todo", listName: "to-do list", ph: "Add things to do, e.g. pay the electricity bill", doneWord: "Done", tickOn: "Mark as done", tickOff: "Mark as not done",
+    clearDone: "Delete done", empty: "Jobs stay here until you tick them off. Add a day, like “call the plumber tomorrow”, and it shows under Coming up. Separate several with commas", sayEg: "“pay the bill tomorrow, call the plumber”"}
+};
+export const listItems = kind => {
+  const all = S.items.filter(i => i.kind === kind);
+  return {
+    all,
+    open: all.filter(i => !i.bought).sort((a, b) => String(a.remindOn || "9").localeCompare(String(b.remindOn || "9")) || String(a.createdAt).localeCompare(String(b.createdAt))),
+    done: all.filter(i => i.bought).sort((a, b) => String(b.boughtAt).localeCompare(String(a.boughtAt)))
+  };
+};
+function listSection(kind) {
+  const L = LISTS[kind], {all, open, done} = listItems(kind), k = `data-list="${kind}"`;
+  const when = i => i.remindOn ? `${daysBetween(today(), i.remindOn) < 0 ? "Was due" : "Due"} ${shortDate(i.remindOn + "T12:00")}` : shortDate(i.keptAt);
   const line = i => `<div class="buy-row${i.bought ? " done" : ""}">
-    <button class="tick" type="button" data-buy-toggle="${esc(i.id)}" aria-pressed="${i.bought}" aria-label="${i.bought ? "Mark as not bought" : "Mark as bought"}: ${esc(i.name)}">${i.bought ? icon("check") : ""}</button>
+    <button class="tick" type="button" data-tick="${esc(i.id)}" aria-pressed="${i.bought}" aria-label="${i.bought ? L.tickOff : L.tickOn}: ${esc(i.name)}">${i.bought ? icon("check") : ""}</button>
     <span class="buy-name">${esc(i.name)}</span>
-    ${i.bought ? `<span class="buy-acts"><button class="btn small" type="button" data-buy-put="${esc(i.id)}">Put away</button><button class="btn small ghost danger" type="button" data-buy-del="${esc(i.id)}">Delete</button></span>`
-      : `<span class="hint">${esc(shortDate(i.keptAt))}</span>`}</div>`;
-  return sec(`To buy${open.length ? ` (${open.length})` : ""}`, `<div class="buy">
-    <form class="buy-add" id="buy-form" novalidate><label class="sr" for="buy-input">Add something to buy</label>
-      <input class="input" id="buy-input" autocomplete="off" enterkeyhint="done" placeholder="Add things to buy, e.g. batteries, atta">
-      ${canListen ? `<button class="btn" type="button" data-act="buy-mic" aria-label="Say what to buy">${icon("mic")}</button>` : ""}<button class="btn dark" type="submit">Add</button></form>
-    ${all.length ? `<div class="buy-list">${[...open, ...done].map(line).join("")}</div>`
-      : `<p class="hint">Things to get from the market stay here until you tick them off. Type several at once with commas${canListen ? ", or tap the mic here and just say them: “milk, eggs and bread”" : ""}.</p>`}
-    ${!all.length ? "" : S.confirmClearBuy
-      ? `<div class="confirm"><p style="margin:0">${all.length === 1 ? "Delete the 1 thing" : `Delete all ${all.length} things`} on the shopping list? This can't be undone.</p>
-          <div class="row"><button class="btn dark" type="button" data-act="clear-buy-yes">Delete ${all.length === 1 ? "it" : "all"}</button><button class="btn" type="button" data-act="clear-buy-no">Keep ${all.length === 1 ? "it" : "them"}</button></div></div>`
-      : `<div class="buy-foot"><span class="hint">${done.length ? `Ticked off: ${done.length}` : `${all.length} on the list`}</span>
-          <span class="buy-acts">${done.length ? `<button class="btn small ghost danger" type="button" data-act="clear-bought">Delete bought</button>` : ""}<button class="btn small ghost danger" type="button" data-act="clear-buy">Delete all</button></span></div>`}
-  </div>`, open.length ? `<button class="link" type="button" data-act="read-buy">Read aloud</button>` : "");
+    ${i.bought ? `<span class="buy-acts">${kind === "buy" ? `<button class="btn small" type="button" data-put="${esc(i.id)}">Put away</button>` : ""}<button class="btn small ghost danger" type="button" data-del="${esc(i.id)}">Delete</button></span>`
+      : `<span class="hint">${esc(when(i))}</span>`}</div>`;
+  const n = all.length, confirming = S.confirmClear && S.confirmClear[kind];
+  return sec(`${L.title}${open.length ? ` (${open.length})` : ""}`, `<div class="buy">
+    <form class="buy-add list-add" ${k} novalidate><label class="sr" for="${kind}-input">${L.ph}</label>
+      <input class="input" id="${kind}-input" autocomplete="off" enterkeyhint="done" placeholder="${esc(L.ph)}">
+      ${canListen ? `<button class="btn" type="button" data-act="list-mic" ${k} aria-label="Say it">${icon("mic")}</button>` : ""}<button class="btn dark" type="submit">Add</button></form>
+    ${n ? `<div class="buy-list">${[...open, ...done].map(line).join("")}</div>`
+      : `<p class="hint">${L.empty}${canListen ? `, or tap the mic here and just say them: ${L.sayEg}` : ""}.</p>`}
+    ${!n ? "" : confirming
+      ? `<div class="confirm"><p style="margin:0">${n === 1 ? "Delete the 1 thing" : `Delete all ${n} things`} on the ${L.listName}? This can't be undone.</p>
+          <div class="row"><button class="btn dark" type="button" data-act="clear-list-yes" ${k}>Delete ${n === 1 ? "it" : "all"}</button><button class="btn" type="button" data-act="clear-list-no" ${k}>Keep ${n === 1 ? "it" : "them"}</button></div></div>`
+      : `<div class="buy-foot"><span class="hint">${done.length ? `Ticked off: ${done.length}` : `${n} on the list`}</span>
+          <span class="buy-acts">${done.length ? `<button class="btn small ghost danger" type="button" data-act="clear-done" ${k}>${L.clearDone}</button>` : ""}<button class="btn small ghost danger" type="button" data-act="clear-list" ${k}>Delete all</button></span></div>`}
+  </div>`, open.length ? `<button class="link" type="button" data-act="read-list" ${k}>Read aloud</button>` : "");
 }
 
 function comingGroups() {
@@ -80,7 +96,7 @@ function comingGroups() {
     if (days <= 30) groups.push({title: OCCASIONS[key].label, when: whenText(key, days), days, its});
   }
   for (const i of S.items) {
-    if (!i.remindOn) continue;
+    if (!i.remindOn || i.bought) continue;
     const days = daysBetween(t, i.remindOn);
     if (days <= 14 && days >= -3) groups.push({title: fmtDate(i.remindOn), when: whenText("date", days), days, its: [i]});
   }
@@ -107,7 +123,7 @@ export function viewHome() {
   const ex = S.items.filter(i => i.example).length;
   if (ex) out.push(notice(`${plural(ex, "example")} show how it works.`, `<button class="btn small" type="button" data-act="clear-examples">Clear examples</button>`));
   if (S.ready && !S.items.some(i => i.kind === "item" || i.kind === "note")) out.push(hello());
-  out.push(buySection());
+  out.push(listSection("buy"), listSection("todo"));
 
   const coming = comingGroups();
   if (coming.length) out.push(sec("Coming up", `<div class="list">${coming.map(g => `<div class="soon"><h3>${esc(g.title)}<small>${esc(g.when)}</small></h3>${list(g.its)}</div>`).join("")}</div>`));

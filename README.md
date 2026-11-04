@@ -9,6 +9,7 @@ A phone app for remembering where you put things, and anything else worth rememb
 - **Coming up**: things tagged Diwali, Holi, Christmas, winter, summer or monsoon show on the home screen before you need them.
 - **Taken out, then put back**: things you take out stay on the home screen until you record where they went back.
 - **Shopping list**: things to buy stay at the top of the home screen until you tick them off; then delete them, or tap Put away to record where they went.
+- **To-do list**: jobs work the same way, and a job with a day ("pay the bill tomorrow") shows under Coming up and gets a reminder.
 - **Box labels**: print a QR label for a trunk, box or drawer (Settings › Box labels). Scanning it with the phone's camera shows what's inside, and lets you put something in without saying where.
 - **Date kept**: every entry has the date you kept it, which you can set to an earlier day.
 - **Phone reminders** for festivals, expiry dates, chosen dates and things not put back (Android, once installed).
@@ -32,6 +33,9 @@ A phone app for remembering where you put things, and anything else worth rememb
 | “Bazaar se dudh laane hai, kele laane hain” / “Mujhe dudh aur bread chahiye” / “Aata paneer daliya gobhi” | Each thing becomes its own line on the list, even without commas |
 | “I bought the batteries” / “Doodh le aaya” | Ticks them off the shopping list |
 | “Read my shopping list” / “What do I need to buy?” / “Kya kya lana hai?” | Reads the shopping list aloud |
+| “I have to call mom tomorrow” / “Add pay the bill to my to-do list” / “Mummy ko call karna hai” | Adds to the to-do list, with the day if you said one |
+| “What do I have to do?” / “Kya kya karna hai?” | Reads the to-do list aloud |
+| “Electricity bill done” / “Plumber ko call kar diya” | Ticks it off the to-do list |
 
 Spoken entries save after a 4-second countdown that you can cancel or edit. You can switch the countdown off in Settings. If something you meant to buy is about to be saved as a note, tap **Add to To buy instead**. The mic inside the To buy list adds everything you say straight to the list. Answers are read a little slower than normal speech; change the speed in Settings › Voice.
 

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {parseLine, parseCommand, parseWhen} from "../js/parse.js";
 import {searchItems, guessCategory, guessOccasion} from "../js/search.js";
-import {nextDate, whenText, daysBetween} from "../js/data.js";
+import {nextDate, whenText, daysBetween, addDays, today} from "../js/data.js";
 import {schedule} from "../js/reminders.js";
 import {qrMatrix} from "../js/qr.js";
 
@@ -51,7 +51,8 @@ t("spoken commands", () => {
   assert.equal(c("I put the lights back in the loft").where.room, "Loft");
   assert.equal(c("extension board wapas rakh diya").intent, "back");
   assert.equal(c("lights nikal liya").intent, "out");
-  assert.equal(c("remind me to renew the car insurance").remind, true);
+  assert.equal(c("remind me to renew the car insurance").intent, "todo");
+  assert.equal(c("Remind me about the meeting").remind, true);
 });
 
 t("shopping list", () => {
@@ -93,12 +94,31 @@ t("shopping list", () => {
   for (const [s, items] of real) assert.deepEqual(pick(c(s), ["intent", "items"]), {intent: "buy", items}, s);
   assert.equal(c("Paneer").intent, "note");
   assert.equal(c("My passport, bedroom almira, first drawer left side").intent, "keep");
-  assert.equal(c("Remind me to buy a gift on 20 November").intent, "note");
+  assert.deepEqual(c("Remind me to buy a gift on 20 November").items, [{name: "Buy a gift", remindOn: "2026-11-20"}]);
   assert.equal(c("Saw a nice lamp in the market").intent, "note");
   assert.notEqual(c("Get the passport out of the locker").intent, "buy");
   assert.deepEqual(pick(c("I got the milk"), ["intent", "query"]), {intent: "bought", query: "milk"});
   assert.equal(c("What do I need to buy").intent, "list");
   assert.equal(c("Where is my passport.").intent, "find");
+});
+
+t("to-do list", () => {
+  const c = s => parseCommand(s), names = s => (c(s).items || []).map(i => i.name);
+  const todos = [
+    ["add call the plumber to my to-do list", ["Call the plumber"]],
+    ["to do: pay electricity bill, renew car insurance", ["Pay electricity bill", "Renew car insurance"]],
+    ["I have to call mom tomorrow", ["Call mom"]], ["mummy ko call karna hai", ["Mummy ko call karna"]],
+    ["kal bijli ka bill bharna hai", ["Bijli ka bill bharna"]], ["I need to call the plumber.", ["Call the plumber"]],
+    ["Remind me to renew the passport on 20 November", ["Renew the passport"]]
+  ];
+  for (const [s, want] of todos) { assert.equal(c(s).intent, "todo", s); assert.deepEqual(names(s), want, s); }
+  assert.equal(c("I have to call mom tomorrow").items[0].remindOn, addDays(today(), 1));
+  for (const s of ["what do I have to do", "read my to do list", "kya kya karna hai", "my to-do list", "What are my tasks?"]) assert.equal(c(s).intent, "todo-list", s);
+  for (const [s, q] of [["done pay electricity bill", "pay electricity bill"], ["electricity bill done", "electricity bill"], ["plumber ko call kar diya", "plumber ko call"]])
+    assert.deepEqual(pick(c(s), ["intent", "query"]), {intent: "done", query: q}, s);
+  assert.equal(c("I need to buy milk").intent, "buy");
+  assert.equal(c("doodh lana hai").intent, "buy");
+  assert.equal(c("Milk is finished").intent, "buy");
 });
 
 t("box labels decode to the same text", () => {

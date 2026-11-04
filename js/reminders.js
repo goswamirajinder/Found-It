@@ -19,7 +19,10 @@ export function schedule(items, t = today()) {
   }
   for (const it of items) {
     if (it.expiry) out.push({key: `exp:${it.id}:${it.expiry}`, date: addDays(it.expiry, -14), title: `${it.name} expires on ${fmtDate(it.expiry)}`, body: `Kept in ${where(it)}`});
-    if (it.remindOn) out.push({key: `rem:${it.id}:${it.remindOn}`, date: it.remindOn, title: it.kind === "note" ? "Reminder" : `You wanted the ${it.name} today`, body: it.kind === "note" ? it.name : `Kept in ${where(it)}`});
+    if (it.remindOn && !it.bought) {
+      const [title, body] = it.kind === "note" ? ["Reminder", it.name] : it.kind === "todo" ? ["To do today", it.name] : [`You wanted the ${it.name} today`, `Kept in ${where(it)}`];
+      out.push({key: `rem:${it.id}:${it.remindOn}`, date: it.remindOn, title, body});
+    }
     if (it.kind !== "note" && it.status === "out" && it.outAt) out.push({key: `out:${it.id}:${it.outAt}`, date: addDays(ymd(new Date(it.outAt)), 3), title: `Did the ${it.name} go back?`, body: "Tap to record where you put it."});
   }
   return out;

@@ -75,13 +75,17 @@ export function parseLine(line, knownRooms = []) {
 
 // Pulls a spoken date out of a note: "tomorrow", "next week", "in 3 days", "on 20 November", "on Nov 20".
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-export function parseWhen(text, t = today()) {
+// With `hi`, Hinglish days count too ("kal" = tomorrow, as it means in a to-do).
+export function parseWhen(text, t = today(), hi = false) {
   const s = String(text || "");
   const out = (date, re) => ({date, rest: tidyRest(s.replace(re, " ")), tomorrow: addDays(t, 1)});
   let m;
   if ((m = s.match(/\b(?:on\s+)?the day after tomorrow\b|\bday after tomorrow\b/i))) return out(addDays(t, 2), m[0]);
   if ((m = s.match(/\b(?:on\s+)?tomorrow\b/i))) return out(addDays(t, 1), m[0]);
   if ((m = s.match(/\b(?:later\s+)?today\b|\btonight\b/i))) return out(t, m[0]);
+  if (hi && (m = s.match(/\bparson\b/i))) return out(addDays(t, 2), m[0]);
+  if (hi && (m = s.match(/\bkal\b/i))) return out(addDays(t, 1), m[0]);
+  if (hi && (m = s.match(/\baaj\b/i))) return out(t, m[0]);
   if ((m = s.match(/\bnext week\b/i))) return out(addDays(t, 7), m[0]);
   if ((m = s.match(/\bin (\d{1,3}) days?\b/i))) return out(addDays(t, +m[1]), m[0]);
   const dm = s.match(/\b(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i)
@@ -197,10 +201,39 @@ const LIST_ASK = /^(?:please\s+)?(?:speak|read|tell|show|say|give|list|open|what
 const LIST_WHAT = /\b(?:shopping|grocery|groceries|market|to[- ]?buy|buying)(?:\s+list)?\b|\b(?:need|have|got) to buy\b|\bshould (?:i|we) buy\b/i;
 const LIST_HI = /\bkya(?:\s+kya)?\s+(?:lana|lani|laana|kharidna|kharidni)\s+(?:hai|hain|he)\b/i;
 const WHEN_RE = /^(?:the\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tonight|tomorrow|morning|evening|night|afternoon|weekend|next\s+\w+|this\s+\w+|\d{1,2}(?::\d{2})?\s*(?:am|pm|o'?clock|baje)|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2})\b/i;
+// To-dos: "add call the plumber to my to-do list", "I have to pay the bill tomorrow", "mummy ko call karna hai".
+const TODOW = "(?:to[- ]?do|todo|tasks?|kaam)(?:\\s+list)?";
+const TODO_RES = [
+  new RegExp(`^(?:add|put|write|include|daal|dalo|daalo|likho|jodo)\\s+(.+?)\\s+${TO}${TODOW}$`, "i"),
+  new RegExp(`^(?:add|put|write)\\s+${TO}${TODOW}[:,\\s-]+(.+)$`, "i"),
+  new RegExp(`^(.+?)\\s+${TO}${TODOW}$`, "i"),
+  new RegExp(`^${TODOW}\\s+(?:mein|me|main)\\s+(.+?)(?:\\s+(?:add|daal|dalo|daalo|likho|likh do|jodo)(?:\\s+(?:karo|kar do|do|dena))?)?$`, "i"),
+  /^(?:to[- ]?do|todo|tasks?)\b[:,\s-]+(.+)$/i,
+  /^(?:i|we)\s+(?:have to|need to|must|should|ought to|got to|gotta)\s+(?!buy\b)(.+)$/i,
+  /^(?:remind me to|don't forget to|do not forget to|remember to|reminder to)\s+(?!buy\b)(.+)$/i,
+  /^(.+?\s+\S+(?:na|ni|ne))\s+(?:hai|hain|he)$/i
+];
+const splitTodos = s => String(s || "").split(/\s*(?:[,;]|\band then\b|\bthen\b|\bphir\b|\buske baad\b)\s*/i).map(x => x.trim()).filter(Boolean);
+// The jobs in a sentence, each with the day it's due if one was said; null when it isn't a to-do (unless `any`).
+export function todoItems(t, any = false) {
+  let body = null;
+  for (const re of TODO_RES) { const m = t.match(re); if (m) { body = m[1]; break; } }
+  if (body === null) { if (!any) return null; body = t; }
+  const out = splitTodos(body).map(x => { const w = parseWhen(x, today(), true); return {name: cap(w.date ? w.rest : x), remindOn: w.date}; }).filter(x => x.name);
+  return out.length ? out : null;
+}
+const DONE_RES = [
+  /^(?:done|finished|completed|mark|tick off|tick|cross off|strike off)\s+(?:the\s+)?(.+?)(?:\s+(?:as\s+)?(?:done|complete|completed|finished|off))?$/i,
+  /^(?:i|we)\s+(?:have\s+)?(?:done|finished|completed)\s+(?:the\s+)?(.+)$/i,
+  /^(.+?)\s+(?:is\s+|are\s+|has been\s+)?(?:done|completed|finished|ho gaya|ho gayi|ho gaye|kar diya|kar di|kar liya|kar li|kar dia)$/i
+];
+// Asking to hear the to-do list: "read my to-do list", "what do I have to do?", "kya kya karna hai".
+const TODO_WHAT = /\b(?:to[- ]?do|todo|tasks?)(?:\s+list)?\b|\bwhat (?:do|should|must) (?:i|we) (?:have to )?do\b|\bwhat(?:'s| is) (?:on )?(?:my|the) (?:agenda|schedule|plan)\b/i;
+const TODO_HI = /\bkya(?:\s+kya)?\s+karna\s+(?:hai|hain)\b|\bkaam\s+(?:batao|sunao|bolo)\b/i;
 // A request to the app that matched nothing else must not end up saved as a note.
-const APP_ASK = /^(?:please\s+)?(?:speak|read|tell me|show|open|play|sunao|batao|dikhao)\b.*\b(?:list|notes|boxes|everything)\b/i;
+const APP_ASK =/^(?:please\s+)?(?:speak|read|tell me|show|open|play|sunao|batao|dikhao)\b.*\b(?:list|notes|boxes|everything)\b/i;
 
-// One sentence in, one intent out: find | keep | note | out | back | buy | bought | list | help | none.
+// One sentence in, one intent out: find | keep | note | out | back | buy | bought | list | todo | todo-list | done | help | none.
 export function parseCommand(raw, knownRooms = []) {
   const said = String(raw || "").replace(/\s+/g, " ").trim().replace(/^(?:ok(?:ay)?|hey|hi|hello|please|found it)[,.!\s]+/i, "");
   // Phones often add a full stop or question mark; remember the question, then match on the bare words.
@@ -211,15 +244,24 @@ export function parseCommand(raw, knownRooms = []) {
     // "Note: buy milk" and "remind me to buy batteries" belong on the shopping list, unless a date was said.
     const items = buyItems(m[1]) || (/^remind me to buy\b/i.test(text) ? splitItems(m[1].replace(/^buy\s+/i, "")) : null);
     if (items && !parseWhen(m[1]).date) return {intent: "buy", items, text};
+    // "Remind me to call mom tomorrow" is a job to do, with its day.
+    if (/^(?:remind me to|remember to|reminder to)\b/i.test(text) || (/^remind me\b/i.test(text) && parseWhen(m[1]).date)) {
+      const todos = todoItems(m[1], true);
+      if (todos) return {intent: "todo", items: todos, text};
+    }
     return {intent: "note", text: cap(m[1]), remind: /^remind me/i.test(text)};
   }
   if (LIST_HI.test(text) || (LIST_WHAT.test(text) && (LIST_ASK.test(text) || asked || /^(?:my\s+|the\s+)?(?:shopping|grocery|market)\s+list$/i.test(text)))) return {intent: "list", text};
+  if (TODO_HI.test(text) || (TODO_WHAT.test(text) && (LIST_ASK.test(text) || asked || /^(?:my\s+|the\s+)?(?:to[- ]?do|todo|tasks?)(?:\s+list)?$/i.test(text)))) return {intent: "todo-list", text};
   if (/^(?:i\s+)?(?:saw|seen|spotted|noticed|liked|loved|met|heard|thinking|idea)\b/i.test(text)) return {intent: "note", text: cap(text)};
   const items = buyItems(text);
   if (items) return {intent: "buy", items, text};
   m = text.match(BOUGHT) || text.match(BOUGHT_HI);
   if (m) return {intent: "bought", query: m[1], text};
   if (FIND_RE.test(text) || FIND_HI.test(text) || asked) return {intent: "find", query: findQuery(text), text};
+  const todos = todoItems(text);
+  if (todos) return {intent: "todo", items: todos, text};
+  for (const re of DONE_RES) { m = text.match(re); if (m) return {intent: "done", query: m[1], text}; }
   m = text.match(/^(?:i\s+(?:have\s+|just\s+|am\s+)?)?(?:put|placed|kept|keep|putting)\s+(?:the\s+)?(.+?)\s+back\b(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i)
     || text.match(/^(?:i\s+(?:have\s+)?)?(?:returned|put back|kept back)\s+(?:the\s+)?(.+?)(?:\s+(?:in|on|at|into|inside)\s+(.+))?$/i);
   if (m) return {intent: "back", query: m[1], where: m[2] ? parseLine(`x in ${m[2]}`, knownRooms) : null, text};
